@@ -8,10 +8,6 @@ if [[ $NO_SETUP == "true" ]]; then
   exit 0
 fi
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "The OpenHands entrypoint.sh must run as root"
-  exit 1
-fi
 
 if [ -z "$SANDBOX_USER_ID" ]; then
   echo "SANDBOX_USER_ID is not set"
