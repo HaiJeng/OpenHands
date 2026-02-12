@@ -1,0 +1,207 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openhands.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openhands.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "openhands.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "openhands.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openhands.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: openhands
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: TCP
+        env:
+        - name: AGENT_SERVER_IMAGE_REPOSITORY
+          value: "{{ .Values.image.agentServer.repository }}:{{ .Values.image.agentServer.tag }}"
+        - name: WORKSPACE_MOUNT_PATH
+          value: {{ .Values.openhands.workspace.base | quote }}
+        - name: WORKSPACE_BASE
+          value: {{ .Values.openhands.workspace.base | quote }}
+        - name: RUN_AS_OPENHANDS
+          value: "true"
+        - name: FILE_STORE
+          value: {{ .Values.openhands.fileStore.type | quote }}
+        - name: FILE_STORE_PATH
+          value: {{ .Values.openhands.fileStore.path | quote }}
+        - name: INIT_GIT_IN_EMPTY_WORKSPACE
+          value: {{ .Values.openhands.workspace.initGit | quote }}
+        - name: SANDBOX_USER_ID
+          value: "0"
+        {{- if .Values.openhands.llm.model }}
+        - name: LLM_MODEL
+          value: {{ .Values.openhands.llm.model | quote }}
+        {{- end }}
+        {{- if .Values.openhands.llm.apiKey }}
+        - name: LLM_API_KEY
+          value: {{ .Values.openhands.llm.apiKey | quote }}
+        {{- end }}
+        {{- if .Values.openhands.llm.baseURL }}
+        - name: LLM_BASE_URL
+          value: {{ .Values.openhands.llm.baseURL | quote }}
+        {{- end }}
+        {{- if .Values.openhands.jwtSecret }}
+        - name: JWT_SECRET
+          value: {{ .Values.openhands.jwtSecret | quote }}
+        {{- end }}
+        {{- if .Values.openhands.llm.temperature }}
+        - name: LLM_TEMPERATURE
+          value: {{ .Values.openhands.llm.temperature | quote }}
+        {{- end }}
+        {{- if .Values.openhands.llm.maxTokens }}
+        - name: LLM_MAX_TOKENS
+          value: {{ .Values.openhands.llm.maxTokens | quote }}
+        {{- end }}
+        {{- if .Values.openhands.sandbox.runtime }}
+        - name: RUNTIME
+          value: {{ .Values.openhands.sandbox.runtime | quote }}
+        {{- end }}
+        {{- if .Values.image.runtime.repository }}
+        - name: RUNTIME_CONTAINER_IMAGE
+          value: "{{ .Values.image.runtime.repository }}:{{ .Values.image.runtime.tag }}"
+        {{- end }}
+        {{- if .Values.openhands.security.enableAnalyzer }}
+        - name: ENABLE_SECURITY_ANALYZER
+          value: "true"
+        {{- end }}
+        {{- if .Values.openhands.security.analyzerType }}
+        - name: SECURITY_ANALYZER
+          value: {{ .Values.openhands.security.analyzerType | quote }}
+        {{- end }}
+        {{- if .Values.openhands.browser.enabled }}
+        - name: ENABLE_BROWSER
+          value: "true"
+        {{- end }}
+        {{- if .Values.openhands.agent.defaultAgent }}
+        - name: DEFAULT_AGENT
+          value: {{ .Values.openhands.agent.defaultAgent | quote }}
+        {{- end }}
+        {{- if .Values.openhands.sandbox.maxIterations }}
+        - name: MAX_ITERATIONS
+          value: {{ .Values.openhands.sandbox.maxIterations | quote }}
+        {{- end }}
+        {{- if .Values.openhands.sandbox.maxBudget }}
+        - name: MAX_BUDGET_PER_TASK
+          value: {{ .Values.openhands.sandbox.maxBudget | quote }}
+        {{- end }}
+        {{- if .Values.openhands.conversation.maxConcurrent }}
+        - name: MAX_CONCURRENT_CONVERSATIONS
+          value: {{ .Values.openhands.conversation.maxConcurrent | quote }}
+        {{- end }}
+        {{- if .Values.openhands.conversation.maxAgeSeconds }}
+        - name: CONVERSATION_MAX_AGE_SECONDS
+          value: {{ .Values.openhands.conversation.maxAgeSeconds | quote }}
+        {{- end }}
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.secret.enabled }}
+        {{- range $key, $value := .Values.secret.data }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "openhands.secretName" $ }}
+              key: {{ $key }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          mountPath: {{ .Values.openhands.fileStore.path }}
+        - name: workspace
+          mountPath: {{ .Values.openhands.workspace.base }}
+        {{- end }}
+        {{- if .Values.dockerSocket.enabled }}
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+        {{- end }}
+        {{- if .Values.config.enabled }}
+        - name: config
+          mountPath: /app/config.toml
+          subPath: config.toml
+          readOnly: true
+        {{- end }}
+        {{- with .Values.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      {{- if .Values.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "openhands.pvcName" . }}
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: {{ include "openhands.pvcName" . }}
+      {{- end }}
+      {{- if .Values.dockerSocket.enabled }}
+      - name: docker-socket
+        hostPath:
+          path: {{ .Values.dockerSocket.hostPath }}
+          type: Socket
+      {{- end }}
+      {{- if .Values.config.enabled }}
+      - name: config
+        configMap:
+          name: {{ include "openhands.configMapName" . }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

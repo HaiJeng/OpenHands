@@ -1,0 +1,17 @@
+{{/*
+ConfigMap for OpenHands configuration
+*/}}
+{{- if .Values.config.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openhands.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openhands.labels" . | nindent 4 }}
+data:
+  {{- if .Values.config.toml }}
+  config.toml: |
+    {{- .Values.config.toml | nindent 4 }}
+  {{- end }}
+{{- end }}

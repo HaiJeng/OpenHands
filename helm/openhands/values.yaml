@@ -1,0 +1,282 @@
+# Default values for openhands Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## @section Global parameters
+global:
+  # Global image pull secrets
+  imagePullSecrets: []
+  # - name: myRegistryKeySecretName
+
+## @section Image parameters
+image:
+  # Main OpenHands application image
+  repository: docker.openhands.dev/openhands/openhands
+  tag: latest
+  pullPolicy: IfNotPresent
+
+  # Runtime image used for sandbox environments
+  runtime:
+    repository: ghcr.io/openhands/runtime
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Agent server image
+  agentServer:
+    repository: ghcr.io/openhands/agent-server
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # UV image for Python package management
+  uv:
+    repository: ghcr.io/astral-sh/uv
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## @section OpenHands configuration
+openhands:
+  # LLM configuration
+  llm:
+    model: gpt-4o
+    apiKey: ""
+    baseURL: ""
+    temperature: 0.0
+    maxTokens: 0
+    # Custom LLM provider (optional)
+    customProvider: ""
+  
+  # Workspace configuration
+  workspace:
+    base: /opt/workspace_base
+    mountPath: /workspace
+    # Initialize git in empty workspace
+    initGit: true
+  
+  # Security configuration
+  security:
+    # Enable security analyzer
+    enableAnalyzer: true
+    # Security analyzer type: llm or invariant
+    analyzerType: llm
+  
+  # Agent configuration
+  agent:
+    defaultAgent: CodeActAgent
+    enableBrowsing: true
+    enableJupyter: true
+    enableEditor: true
+    enableCmd: true
+  
+  # Sandbox/Runtime configuration
+  sandbox:
+    runtime: docker
+    # Keep runtime alive after session ends
+    keepAlive: false
+    # Maximum iterations per task
+    maxIterations: 500
+    # Maximum budget per task (0 = no limit)
+    maxBudget: 0.0
+    # Enable GPU support in runtime
+    enableGPU: false
+    # CUDA visible devices (for GPU)
+    cudaVisibleDevices: ""
+  
+  # File store configuration
+  fileStore:
+    type: local
+    path: /.openhands
+  
+  # Browser configuration
+  browser:
+    enabled: true
+  
+  # JWT secret for authentication (generate a strong random string)
+  jwtSecret: ""
+  
+  # Conversation settings
+  conversation:
+    maxConcurrent: 3
+    maxAgeSeconds: 864000  # 10 days
+
+## @section Kubernetes configuration
+kubernetes:
+  # Namespace for runtime pods
+  namespace: default
+  
+  # Persistent Volume Claim configuration
+  pvc:
+    # Storage size for workspace and data
+    storageSize: 10Gi
+    # Storage class (leave empty for default)
+    storageClass: ""
+    # Access mode
+    accessMode: ReadWriteOnce
+  
+  # Resource configuration for runtime pods
+  runtimeResources:
+    cpu:
+      request: "1"
+      limit: "4"
+    memory:
+      request: "1Gi"
+      limit: "4Gi"
+  
+  # Node selector for runtime pods
+  runtimeNodeSelector: {}
+  
+  # Tolerations for runtime pods
+  runtimeTolerations: []
+  
+  # Image pull secret for runtime pods (if using private registry)
+  runtimeImagePullSecret: ""
+  
+  # Run runtime pods in privileged mode (required for Docker-in-Docker)
+  runtimePrivileged: false
+
+## @section Deployment parameters
+replicaCount: 1
+
+imagePullSecrets: []
+
+# Override name suffix
+nameOverride: ""
+# Override full name
+fullnameOverride: ""
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 42420
+  runAsUser: 42420
+  runAsGroup: 42420
+
+# Container security context
+securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 42420
+  capabilities:
+    drop:
+    - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: openhands.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: openhands-tls
+  #    hosts:
+  #      - openhands.local
+
+# Resource limits
+resources:
+  limits:
+    cpu: 4
+    memory: 8Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Docker socket mounting (required for runtime containers)
+dockerSocket:
+  enabled: true
+  hostPath: /var/run/docker.sock
+
+# Persistence configuration
+persistence:
+  # Enable persistent storage
+  enabled: true
+  # Existing claim name (if using existing PVC)
+  existingClaim: ""
+  # Storage class for workspace/data
+  storageClass: ""
+  # Access mode
+  accessMode: ReadWriteOnce
+  # Storage size
+  size: 10Gi
+
+# Environment variables to add to the deployment
+extraEnv: []
+# - name: MY_ENV_VAR
+#   value: "my-value"
+# - name: SECRET_VAR
+#   valueFrom:
+#     secretKeyRef:
+#       name: my-secret
+#       key: secret-key
+
+# Volume mounts to add
+extraVolumeMounts: []
+# - name: extra-volume
+#   mountPath: /mnt/volume
+#   readOnly: true
+
+# Volumes to add
+extraVolumes: []
+# - name: extra-volume
+#   persistentVolumeClaim:
+#   claimName: my-pvc
+
+# ConfigMap for additional OpenHands configuration
+config:
+  # Create a ConfigMap from config.toml
+  enabled: false
+  # Existing ConfigMap name (if using existing ConfigMap)
+  existingConfigmap: ""
+  # Inline TOML configuration (will be merged with defaults)
+  toml: ""
+  #  [llm]
+  #  model = "gpt-4o"
+  #  apiKey = "sk-..."
+
+# Secret for sensitive data
+secret:
+  # Create a Secret for sensitive configuration
+  enabled: false
+  # Existing Secret name
+  existingSecret: ""
+  # Secret data as key-value pairs
+  data: {}
+  #  llmApiKey: sk-...
+  #  jwtSecret: your-secret-key

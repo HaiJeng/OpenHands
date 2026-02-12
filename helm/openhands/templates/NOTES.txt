@@ -1,0 +1,78 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+OpenHands will be available after the pods are running.
+You can check the status with:
+
+  $ kubectl get pods -l app.kubernetes.io/name={{ include "openhands.name" . }},app.kubernetes.io/instance={{ .Release.Name }} -w
+
+To get the credentials for accessing OpenHands, run:
+
+  $ kubectl get secret {{ include "openhands.secretName" . }} -o jsonpath="{.data}" | jq -r 'to_entries | .[] | "\(.key): \(.value)"'
+
+{{- if .Values.ingress.enabled }}
+
+To access OpenHands externally, you will need to configure DNS for the following hosts:
+
+{{- range .Values.ingress.hosts }}
+  - {{ .host }}
+{{- end }}
+
+Then you can access OpenHands at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+
+To access OpenHands, get the LoadBalancer IP with:
+
+  $ export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "openhands.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  $ echo "OpenHands URL: http://$SERVICE_IP:{{ .Values.service.port }}"
+
+{{- else if eq .Values.service.type "NodePort" }}
+
+To access OpenHands, get the NodePort with:
+
+  $ export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "openhands.fullname" . }})
+  $ export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  $ echo "OpenHands URL: http://$NODE_IP:$NODE_PORT"
+
+{{- else }}
+
+To access OpenHands from within the cluster, use:
+
+  http://{{ include "openhands.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+To port-forward to access OpenHands locally:
+
+  $ kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "openhands.fullname" . }} 3000:{{ .Values.service.port }}
+  $ echo "OpenHands URL: http://localhost:3000"
+
+{{- end }}
+
+To view the logs:
+
+  $ kubectl logs --namespace {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "openhands.name" . }},app.kubernetes.io/instance={{ .Release.Name }} --tail=100 -f
+
+To open a shell in the pod:
+
+  $ kubectl exec --namespace {{ .Release.Namespace }} -it $(kubectl get pods --namespace {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "openhands.name" . }},app.kubernetes.io/instance={{ .Release.Name }} -o jsonpath='{.items[0].metadata.name}') -- /bin/bash
+
+{{- if .Values.persistence.enabled }}
+
+Persistent Volume Claims (PVCs) have been created for data persistence.
+PVC: {{ include "openhands.pvcName" . }}
+
+To view PVC status:
+  $ kubectl get pvc {{ include "openhands.pvcName" . }} -n {{ .Release.Namespace }}
+{{- end }}
+
+For more information, visit:
+  https://docs.openhands.dev
+  https://github.com/OpenHands/OpenHands

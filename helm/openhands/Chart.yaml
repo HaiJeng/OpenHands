@@ -1,0 +1,26 @@
+apiVersion: v2
+name: openhands
+description: A Helm chart for OpenHands - An AI-powered software engineer
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - openhands
+  - ai
+  - developer
+  - llm
+home: https://github.com/OpenHands/OpenHands
+sources:
+  - https://github.com/OpenHands/OpenHands
+maintainers:
+  - name: OpenHands
+    email: hello@all-hands.dev
+icon: https://github.com/OpenHands/OpenHands/raw/main/frontend/public/icon.svg
+annotations:
+  artifacthub.io/category: development-tools
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://docs.openhands.dev
+    - name: GitHub
+      url: https://github.com/OpenHands/OpenHands
