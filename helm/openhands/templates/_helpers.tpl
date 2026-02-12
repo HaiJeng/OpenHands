@@ -82,13 +82,24 @@ Create the name of the secret
 {{- end }}
 
 {{/*
-Create the name of the PVC
+Create the name of the data PVC
 */}}
-{{- define "openhands.pvcName" -}}
-{{- if .Values.persistence.existingClaim }}
-{{- .Values.persistence.existingClaim }}
+{{- define "openhands.dataPvcName" -}}
+{{- if .Values.persistence.data.existingClaim }}
+{{- .Values.persistence.data.existingClaim }}
 {{- else }}
 {{- printf "%s-data" (include "openhands.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create the name of the workspace PVC
+*/}}
+{{- define "openhands.workspacePvcName" -}}
+{{- if .Values.persistence.workspace.existingClaim }}
+{{- .Values.persistence.workspace.existingClaim }}
+{{- else }}
+{{- printf "%s-workspace" (include "openhands.fullname" .) }}
 {{- end }}
 {{- end }}
 

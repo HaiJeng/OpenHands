@@ -15,7 +15,10 @@ resources:
     memory: 4Gi
 
 persistence:
-  size: 5Gi
+  data:
+    size: 2Gi
+  workspace:
+    size: 5Gi
 
 openhands:
   llm:

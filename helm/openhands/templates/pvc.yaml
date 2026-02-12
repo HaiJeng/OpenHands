@@ -1,21 +1,46 @@
 {{/*
-PersistentVolumeClaim for OpenHands workspace and data
+PersistentVolumeClaim for OpenHands data (configuration, conversations, file store)
 */}}
-{{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+{{- if and .Values.persistence.enabled .Values.persistence.data.enabled (not .Values.persistence.data.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "openhands.pvcName" . }}
+  name: {{ include "openhands.dataPvcName" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "openhands.labels" . | nindent 4 }}
+    app.kubernetes.io/component: data
 spec:
   accessModes:
-    - {{ .Values.persistence.accessMode }}
-  {{- if .Values.persistence.storageClass }}
-  storageClassName: {{ .Values.persistence.storageClass }}
+    - {{ .Values.persistence.data.accessMode }}
+  {{- if .Values.persistence.data.storageClass }}
+  storageClassName: {{ .Values.persistence.data.storageClass }}
   {{- end }}
   resources:
     requests:
-      storage: {{ .Values.persistence.size }}
+      storage: {{ .Values.persistence.data.size }}
+{{- end }}
+
+{{/*
+PersistentVolumeClaim for OpenHands workspace (user code, projects)
+*/}}
+{{- if and .Values.persistence.enabled .Values.persistence.workspace.enabled (not .Values.persistence.workspace.existingClaim) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "openhands.workspacePvcName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openhands.labels" . | nindent 4 }}
+    app.kubernetes.io/component: workspace
+spec:
+  accessModes:
+    - {{ .Values.persistence.workspace.accessMode }}
+  {{- if .Values.persistence.workspace.storageClass }}
+  storageClassName: {{ .Values.persistence.workspace.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.workspace.size }}
 {{- end }}

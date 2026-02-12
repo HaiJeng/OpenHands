@@ -47,8 +47,12 @@ ingress:
         - openhands.example.com
 
 persistence:
-  size: 100Gi
-  storageClass: fast-ssd
+  data:
+    size: 20Gi
+    storageClass: fast-ssd
+  workspace:
+    size: 100Gi
+    storageClass: fast-ssd
 
 resources:
   requests:
@@ -76,7 +80,10 @@ resources:
 #     memory: 4Gi
 # 
 # persistence:
-#   size: 5Gi
+#   data:
+#     size: 5Gi
+#   workspace:
+#     size: 10Gi
 # 
 # openhands:
 #   llm:

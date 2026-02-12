@@ -227,14 +227,30 @@ dockerSocket:
 persistence:
   # Enable persistent storage
   enabled: true
-  # Existing claim name (if using existing PVC)
-  existingClaim: ""
-  # Storage class for workspace/data
-  storageClass: ""
-  # Access mode
-  accessMode: ReadWriteOnce
-  # Storage size
-  size: 10Gi
+  
+  # Data persistence (configuration, conversations, file store, etc.)
+  data:
+    enabled: true
+    # Existing claim name (if using existing PVC)
+    existingClaim: ""
+    # Storage class for data
+    storageClass: ""
+    # Access mode
+    accessMode: ReadWriteOnce
+    # Storage size
+    size: 5Gi
+  
+  # Workspace persistence (user code, projects, etc.)
+  workspace:
+    enabled: true
+    # Existing claim name (if using existing PVC)
+    existingClaim: ""
+    # Storage class for workspace
+    storageClass: ""
+    # Access mode
+    accessMode: ReadWriteOnce
+    # Storage size
+    size: 10Gi
 
 # Environment variables to add to the deployment
 extraEnv: []
