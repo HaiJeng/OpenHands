@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.omegagpt.sandbox.appName }}
+  labels:
+    app: {{ .Values.omegagpt.sandbox.appName }} {{- include "itijsin.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.omegagpt.sandbox.port }}
+      protocol: TCP
+      targetPort: {{ .Values.omegagpt.sandbox.port }}
+      {{- if and (eq .Values.omegagpt.sandbox.service.type "NodePort") (.Values.omegagpt.sandbox.service.nodePort) }}
+      nodePort: {{ .Values.omegagpt.sandbox.service.nodePort }}
+      {{- end }}
+    - name: code-plugin
+      port: {{ .Values.omegagpt.codePlugin.port }}
+      protocol: TCP
+      targetPort: {{ .Values.omegagpt.codePlugin.port }}
+      {{- if and (eq .Values.omegagpt.codePlugin.service.type "NodePort") (.Values.omegagpt.codePlugin.service.nodePort) }}
+      nodePort: {{ .Values.omegagpt.codePlugin.service.nodePort }}
+      {{- end }}
+  selector:
+    app: {{ .Values.omegagpt.sandbox.appName }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  type: {{ .Values.omegagpt.sandbox.service.type }}

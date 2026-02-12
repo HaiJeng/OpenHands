@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.omegagpt.mcpStdio.appName }}
+  labels:
+    app: {{ .Values.omegagpt.mcpStdio.appName }} {{- include "itijsin.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.omegagpt.mcpStdio.port }}
+      protocol: TCP
+      targetPort: {{ .Values.omegagpt.mcpStdio.port }}
+      {{- if and (eq .Values.omegagpt.mcpStdio.service.type "NodePort") (.Values.omegagpt.mcpStdio.service.nodePort) }}
+      nodePort: {{ .Values.omegagpt.mcpStdio.service.nodePort }}
+      {{- end }}
+  selector:
+    app: {{ .Values.omegagpt.mcpStdio.appName }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  type: {{ .Values.omegagpt.mcpStdio.service.type }}

@@ -1,0 +1,13 @@
+apiVersion: v1
+name: sandbox
+version: 3.0.0
+appVersion: 3.0.0
+description: sandbox
+keywords:
+  - itijsin
+  - sandbox
+sources:
+  - http://git.inspur.com/donghzhlc-s/sandbox
+maintainers:
+  - name: huangjk
+    email: huagjk@inspur.com

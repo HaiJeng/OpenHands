@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.omegagpt.mcpStdio.appName }}
+  labels:
+    app: {{ .Values.omegagpt.mcpStdio.appName }} {{ include "itijsin.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.omegagpt.mcpStdio.replicas }}
+  strategy:
+    type: {{ .Values.updateStrategy.type }}
+  selector:
+    matchLabels:
+      app: {{ .Values.omegagpt.mcpStdio.appName }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.omegagpt.mcpStdio.appName }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - env:
+            - name: NPM_CONFIG_REGISTRY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-configmap
+                  key: npm.config.registry
+            - name: MCP_CLIENT_MAX_RETRY_ATTEMPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-configmap
+                  key: mcp.client.max-retry-attempts
+            - name: MCP_CLIENT_INSECURE_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Release.Name }}-configmap
+                  key: mcp.client.insecure_urls
+          image: "{{ .Values.image.repository | trimSuffix "/" }}/{{ .Values.omegagpt.mcpStdio.imageName }}:{{ .Values.omegagpt.mcpStdio.tag }}"
+          imagePullPolicy: {{ .Values.image.imagePullPolicy }}
+          name: {{ .Values.omegagpt.mcpStdio.imageName }}
+          ports:
+            - containerPort: {{ .Values.omegagpt.mcpStdio.port }}
+              name: mcp-stdio
+              protocol: TCP
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /app/logs
+              name: {{ .Values.omegagpt.mcpStdio.appName }}-logs-volume
+      volumes:
+        - name: {{ .Values.omegagpt.mcpStdio.appName }}-logs-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.omegagpt.mcpStdio.appName }}-logs-pvc
