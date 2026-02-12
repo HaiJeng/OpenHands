@@ -67,10 +67,15 @@ To open a shell in the pod:
 {{- if .Values.persistence.enabled }}
 
 Persistent Volume Claims (PVCs) have been created for data persistence.
-PVC: {{ include "openhands.pvcName" . }}
+{{- if .Values.persistence.data.enabled }}
+Data PVC: {{ include "openhands.dataPvcName" . }} ({{ .Values.persistence.data.size }})
+{{- end }}
+{{- if .Values.persistence.workspace.enabled }}
+Workspace PVC: {{ include "openhands.workspacePvcName" . }} ({{ .Values.persistence.workspace.size }})
+{{- end }}
 
 To view PVC status:
-  $ kubectl get pvc {{ include "openhands.pvcName" . }} -n {{ .Release.Namespace }}
+  $ kubectl get pvc -n {{ .Release.Namespace }}
 {{- end }}
 
 For more information, visit:
