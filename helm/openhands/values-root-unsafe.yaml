@@ -1,0 +1,23 @@
+# ⚠️  仅用于测试/开发 - Root 用户配置
+
+# 此配置仅用于临时测试，不建议用于生产环境
+# 安全风险：容器以 root 用户运行存在严重安全隐患
+
+podSecurityContext:
+  runAsUser: 0      # root 用户
+  runAsGroup: 0
+  fsGroup: 0
+
+securityContext:
+  runAsNonRoot: false    # 允许以 root 运行
+  runAsUser: 0
+  privileged: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+openhands:
+  llm:
+    apiKey: "your-api-key-here"
+    model: gpt-4o
