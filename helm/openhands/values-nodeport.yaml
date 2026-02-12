@@ -1,0 +1,470 @@
+# NodePort 外部访问配置
+
+## 快速配置
+
+### 方式 1：命令行参数（推荐）
+
+```bash
+helm install openhands ./openhands \
+  --set service.type=NodePort \
+  --set service.nodePort=30000 \
+  --set openhands.llm.apiKey=your-api-key \
+  --set openhands.llm.model=gpt-4o
+```
+
+### 方式 2：创建 values 文件
+
+创建 `values-nodeport.yaml`：
+
+```yaml
+# Service 配置
+service:
+  type: NodePort           # 改为 NodePort
+  nodePort: 30000        # 指定 NodePort（可选，默认会自动分配）
+  port: 3000             # Service 端口保持不变
+  annotations: {}          # 可以添加云服务商特定的注解
+
+# OpenHands 配置
+openhands:
+  llm:
+    apiKey: "your-api-key"
+    model: gpt-4o
+```
+
+然后部署：
+
+```bash
+helm install openhands ./openhands -f values-nodeport.yaml
+```
+
+### 方式 3：修改默认 values.yaml
+
+编辑 `values.yaml`：
+
+```yaml
+service:
+  type: NodePort
+  nodePort: 30000    # 可选，不指定会自动分配
+  port: 3000
+```
+
+## 访问方式
+
+### 获取访问地址
+
+#### 1. 获取节点 IP
+
+```bash
+# 方法 1：获取任意节点 IP
+kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'
+
+# 方法 2：获取所有节点 IP
+kubectl get nodes -o wide
+
+# 方法 3：获取外部 IP（云环境）
+kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}'
+```
+
+#### 2. 访问服务
+
+```bash
+# 格式：<NodeIP>:<NodePort>
+
+# 示例（假设节点 IP 是 192.168.1.100）
+http://192.168.1.100:30000
+
+# 如果指定了 nodePort: 30000
+http://<NodeIP>:30000
+```
+
+### 验证服务
+
+```bash
+# 1. 查看 Service
+kubectl get svc openhands
+
+# 输出示例：
+# NAME        TYPE       EXTERNAL-IP      PORT(S)
+# openhands   NodePort   <none>           30000:30000/TCP
+
+# 2. 查看 Service 详情
+kubectl describe svc openhands
+
+# 3. 查看端口映射
+kubectl get svc openhands -o jsonpath='{.spec.ports[0]}'
+
+# 4. 查看节点端口
+kubectl get nodes -o wide
+```
+
+## 云服务商配置
+
+### AWS EKS
+
+```yaml
+service:
+  type: NodePort
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    # 或者使用 Network Load Balancer
+```
+
+### Google Cloud GKE
+
+```yaml
+service:
+  type: NodePort
+  annotations:
+    cloud.google.com/l4-rbs: "true"
+```
+
+### Azure AKS
+
+```yaml
+service:
+  type: NodePort
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+```
+
+### 阿里云 ACK
+
+```yaml
+service:
+  type: NodePort
+  annotations:
+    service.beta.kubernetes.io/alibaba-cloud-loadbalancer-spec: "{\
+      \"address_type\": \"internet\",\
+      \"charge_type\": \"paybytraffic\"\
+    }"
+```
+
+## 端口说明
+
+### Service Port（集群内部）
+
+```yaml
+service:
+  port: 3000        # Service Port，集群内其他服务访问
+  targetPort: http    # 目标端口，容器内的端口（3000）
+  nodePort: 30000   # NodePort，节点上暴露的端口
+  protocol: TCP       # 协议
+  name: http         # 端口名称
+```
+
+### 端口范围
+
+Kubernetes 默认 NodePort 范围：
+- **30000-32767**：默认范围
+- **自动分配**：如果不指定 `nodePort`，K8s 会自动分配
+
+## 防火墙配置
+
+### 开放节点端口
+
+```bash
+# Ubuntu/Debian
+sudo ufw allow 30000/tcp
+sudo firewall-cmd --permanent --add-port=30000/tcp
+
+# CentOS/RHEL
+sudo firewall-cmd --permanent --add-port=30000/tcp
+sudo firewall-cmd --reload
+
+# 云服务商安全组
+# AWS: 安全组添加入站规则 30000
+# GCP: 防火墙规则允许 TCP:30000
+# Azure: 网络安全组 (NSG) 添加入站规则
+```
+
+### 检查端口是否开放
+
+```bash
+# 从外部测试
+telnet <NodeIP> 30000
+nc -zv <NodeIP> 30000
+
+# 从集群内部测试
+kubectl run test --rm -it --image=busybox -- wget -O- http://openhands:3000
+```
+
+## 高级配置
+
+### 指定多个端口
+
+如果需要暴露多个端口：
+
+```yaml
+service:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: http
+      nodePort: 30000
+      name: http
+    # 添加其他端口
+    # - port: 60001
+    #   targetPort: vscode
+    #   nodePort: 30001
+    #   name: vscode
+```
+
+### sessionAffinity 配置
+
+如果使用 NodePort，建议配置 session 亲和性以确保同一客户端连接到同一 Pod：
+
+```yaml
+service:
+  type: NodePort
+  sessionAffinity: ClientIP  # 推荐配置
+```
+
+### 外部流量策略
+
+```yaml
+service:
+  type: NodePort
+  externalTrafficPolicy: Local  # 或 Cluster
+  internalTrafficPolicy: Local  # 仅内部流量
+```
+
+## 完整示例配置
+
+### 生产环境配置
+
+```yaml
+# values-prod-nodeport.yaml
+service:
+  type: NodePort
+  nodePort: 30000
+  port: 3000
+  sessionAffinity: ClientIP
+  externalTrafficPolicy: Cluster
+
+openhands:
+  llm:
+    apiKey: "<your-production-key>"
+    model: gpt-4o
+
+  # 其他配置...
+```
+
+部署命令：
+
+```bash
+helm install openhands ./openhands \
+  -f values-prod-nodeport.yaml \
+  --namespace production
+```
+
+## 故障排查
+
+### 问题 1：无法访问
+
+```bash
+# 检查 Service 类型
+kubectl get svc openhands -o jsonpath='{.spec.type}'
+
+# 检查 NodePort
+kubectl get svc openhands -o jsonpath='{.spec.ports[0].nodePort}'
+
+# 检查 Pod 是否运行
+kubectl get pods -l app.kubernetes.io/name=openhands
+
+# 检查节点 IP
+kubectl get nodes -o wide
+```
+
+### 问题 2：端口冲突
+
+```bash
+# 查看端口占用
+kubectl get svc --all-namespaces
+
+# 如果端口冲突，修改 nodePort
+helm upgrade openhands ./openhands \
+  --set service.nodePort=30001
+```
+
+### 问题 3：只监听 localhost
+
+```bash
+# 检查 OpenHands 监听地址
+kubectl logs -l app.kubernetes.io/name=openhands | grep "Uvicorn running"
+
+# 应该显示：
+# Uvicorn running on http://0.0.0.0:3000
+
+# 如果显示 127.0.0.1，需要修改
+# 在 deployment.yaml 的 CMD 中添加 --host 0.0.0.0
+```
+
+## 安全建议
+
+### 1. 使用 HTTPS（推荐）
+
+在前端或 Ingress 中配置 TLS：
+
+```yaml
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: openhands-tls
+      hosts:
+        - openhands.example.com
+```
+
+### 2. 限制访问来源
+
+```yaml
+service:
+  type: NodePort
+  # 仅允许特定 IP
+  loadBalancerSourceRanges:
+    - 10.0.0.0/8
+```
+
+### 3. 使用网络策略
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openhands-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: openhands
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            app: frontend
+      ports:
+        - protocol: TCP
+          port: 30000
+```
+
+## 完整部署流程
+
+```bash
+# 1. 创建配置文件
+cat > values-nodeport.yaml <<EOF
+service:
+  type: NodePort
+  nodePort: 30000
+  port: 3000
+  sessionAffinity: ClientIP
+
+openhands:
+  llm:
+    apiKey: "your-api-key"
+    model: gpt-4o
+EOF
+
+# 2. 部署
+helm install openhands ./openhands \
+  -f values-nodeport.yaml \
+  --namespace openhands \
+  --create-namespace
+
+# 3. 等待 Pod 就绪
+kubectl wait --for=condition=ready pod \
+  -l app.kubernetes.io/name=openhands \
+  -n openhands \
+  --timeout=300s
+
+# 4. 获取访问信息
+echo ""
+echo "访问信息："
+echo "================================"
+echo ""
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
+echo "节点 IP: $NODE_IP"
+echo "NodePort: 30000"
+echo ""
+echo "访问地址："
+echo "http://$NODE_IP:30000"
+echo ""
+echo "================================"
+
+# 5. 验证
+curl -I http://$NODE_IP:30000
+```
+
+## 相关命令
+
+### 查看所有 NodePort 服务
+
+```bash
+kubectl get svc -A | grep NodePort
+```
+
+### 查看特定服务详情
+
+```bash
+kubectl describe svc openhands -n openhands
+```
+
+### 实时查看日志
+
+```bash
+kubectl logs -f -l app.kubernetes.io/name=openhands --all-containers=true
+```
+
+### 进入 Pod 调试
+
+```bash
+kubectl exec -it <pod-name> -- /bin/bash
+```
+
+## 从 ClusterIP 切换到 NodePort
+
+如果您已经用 ClusterIP 部署了，可以升级：
+
+```bash
+# 升级现有部署
+helm upgrade openhands ./openhands \
+  --set service.type=NodePort \
+  --set service.nodePort=30000 \
+  --reuse-values
+
+# 验证类型已更改
+kubectl get svc openhands -o jsonpath='{.spec.type}'
+```
+
+## 注意事项
+
+1. **NodePort 范围**：30000-32767
+2. **端口冲突**：确保端口未被占用
+3. **防火墙**：开放相应端口
+4. **云服务商**：配置安全组规则
+5. **DNS 解析**：如果使用域名，确保 DNS 正确
+6. **负载均衡**：考虑使用 LoadBalancer 代替 NodePort
+7. **监控**：监控外部访问流量和安全性
+
+## 推荐配置
+
+对于生产环境，建议使用 **LoadBalancer** 或 **Ingress** 而非 NodePort：
+
+```yaml
+# LoadBalancer 配置（推荐用于生产）
+service:
+  type: LoadBalancer
+  port: 3000
+  annotations:
+    # AWS
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    # GCP
+    cloud.google.com/load-balancer-type: "Internal"
+```
+
+LoadBalancer 优点：
+- 自动分配外部 IP
+- 集成云服务商负载均衡器
+- 更好的可用性和性能
+- 自动健康检查
