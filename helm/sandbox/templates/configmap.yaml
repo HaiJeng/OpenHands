@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-configmap
-  labels: {{ include "itijsin.labels" . | nindent 4 }}
-data:
-  npm.config.registry: {{ .Values.npm_config_registry.url | quote}}
-  mcp.client.insecure_urls: {{ .Values.mcp.client.insecure_urls | quote }}
-  mcp.client.max-retry-attempts: {{ .Values.mcp.client.maxRetryAttempts | quote}}
