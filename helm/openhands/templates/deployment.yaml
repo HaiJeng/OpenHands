@@ -134,10 +134,14 @@ spec:
         {{- end }}
         volumeMounts:
         {{- if .Values.persistence.enabled }}
+        {{- if .Values.persistence.data.enabled }}
         - name: data
           mountPath: {{ .Values.openhands.fileStore.path }}
+        {{- end }}
+        {{- if .Values.persistence.workspace.enabled }}
         - name: workspace
           mountPath: {{ .Values.openhands.workspace.base }}
+        {{- end }}
         {{- end }}
         {{- if .Values.dockerSocket.enabled }}
         - name: docker-socket
@@ -172,12 +176,16 @@ spec:
           {{- toYaml .Values.resources | nindent 10 }}
       volumes:
       {{- if .Values.persistence.enabled }}
+      {{- if .Values.persistence.data.enabled }}
       - name: data
         persistentVolumeClaim:
-          claimName: {{ include "openhands.pvcName" . }}
+          claimName: {{ include "openhands.dataPvcName" . }}
+      {{- end }}
+      {{- if .Values.persistence.workspace.enabled }}
       - name: workspace
         persistentVolumeClaim:
-          claimName: {{ include "openhands.pvcName" . }}
+          claimName: {{ include "openhands.workspacePvcName" . }}
+      {{- end }}
       {{- end }}
       {{- if .Values.dockerSocket.enabled }}
       - name: docker-socket

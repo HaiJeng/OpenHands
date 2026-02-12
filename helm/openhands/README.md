@@ -101,22 +101,62 @@ helm install openhands ./openhands -f custom-values.yaml
 
 ### 持久化存储
 
-默认启用 10Gi 的持久化存储。自定义存储配置：
+默认启用独立的持久化存储：
+- **Data PVC**：用于存储配置、对话历史等应用数据（默认 5Gi）
+- **Workspace PVC**：用于存储用户代码和项目（默认 10Gi）
+
+#### 基本配置
 
 ```bash
 helm install openhands ./openhands \
-  --set persistence.size=20Gi \
-  --set persistence.storageClass=fast-ssd \
-  --set persistence.accessMode=ReadWriteMany
+  --set persistence.data.size=10Gi \
+  --set persistence.workspace.size=20Gi \
+  --set persistence.data.storageClass=fast-ssd \
+  --set persistence.workspace.storageClass=fast-ssd
 ```
 
-使用现有的 PVC：
+#### 使用现有的 PVC
+
+如果您已经创建了 PVC，可以引用它们：
+
+```bash
+# 创建数据 PVC
+kubectl create pvc openhands-data -n default --claim-class=fast-ssd --size=10Gi
+
+# 创建工作区 PVC
+kubectl create pvc openhands-workspace -n default --claim-class=fast-ssd --size=20Gi
+
+# 使用现有的 PVC 安装
+helm install openhands ./openhands \
+  --set persistence.data.existingClaim=openhands-data \
+  --set persistence.workspace.existingClaim=openhands-workspace
+```
+
+#### 禁用某个 PVC
+
+如果不需要独立存储，可以禁用某个 PVC：
+
+```bash
+# 只使用工作区持久化，数据存储在容器中
+helm install openhands ./openhands \
+  --set persistence.data.enabled=false \
+  --set persistence.workspace.enabled=true
+```
+
+#### 多副本和共享存储
+
+如果启用了自动扩容（HPA），需要使用 `ReadWriteMany` 访问模式：
 
 ```bash
 helm install openhands ./openhands \
-  --set persistence.enabled=true \
-  --set persistence.existingClaim=openhands-data
+  --set persistence.data.accessMode=ReadWriteMany \
+  --set persistence.workspace.accessMode=ReadWriteMany \
+  --set persistence.data.storageClass=nfs-storage \
+  --set persistence.workspace.storageClass=nfs-storage \
+  --set autoscaling.enabled=true
 ```
+
+**注意**：`ReadWriteMany` 需要支持的网络存储（如 NFS、Ceph 等）。
 
 ### Ingress 配置
 
@@ -267,8 +307,16 @@ helm install openhands ./openhands \
 |------|------|--------|
 | `replicaCount` | 副本数 | `1` |
 | `persistence.enabled` | 启用持久化 | `true` |
-| `persistence.size` | 存储大小 | `10Gi` |
-| `persistence.storageClass` | 存储类 | `""` |
+| `persistence.data.enabled` | 启用数据持久化 | `true` |
+| `persistence.data.size` | 数据存储大小 | `5Gi` |
+| `persistence.data.storageClass` | 数据存储类 | `""` |
+| `persistence.data.accessMode` | 数据访问模式 | `ReadWriteOnce` |
+| `persistence.data.existingClaim` | 现有数据 PVC 名称 | `""` |
+| `persistence.workspace.enabled` | 启用工作区持久化 | `true` |
+| `persistence.workspace.size` | 工作区存储大小 | `10Gi` |
+| `persistence.workspace.storageClass` | 工作区存储类 | `""` |
+| `persistence.workspace.accessMode` | 工作区访问模式 | `ReadWriteOnce` |
+| `persistence.workspace.existingClaim` | 现有工作区 PVC 名称 | `""` |
 | `service.type` | Service 类型 | `ClusterIP` |
 | `service.port` | Service 端口 | `3000` |
 | `ingress.enabled` | 启用 Ingress | `false` |
@@ -307,7 +355,12 @@ helm uninstall openhands
 删除持久化卷（可选）：
 
 ```bash
+# 删除两个 PVC
+kubectl delete pvc openhands-data openhands-workspace
+
+# 或者只删除特定的 PVC
 kubectl delete pvc openhands-data
+kubectl delete pvc openhands-workspace
 ```
 
 ## 故障排查
