@@ -44,21 +44,21 @@ openhands:
     maxTokens: 0
     # Custom LLM provider (optional)
     customProvider: ""
-  
+
   # Workspace configuration
   workspace:
     base: /opt/workspace_base
     mountPath: /workspace
     # Initialize git in empty workspace
     initGit: true
-  
+
   # Security configuration
   security:
     # Enable security analyzer
     enableAnalyzer: true
     # Security analyzer type: llm or invariant
     analyzerType: llm
-  
+
   # Agent configuration
   agent:
     defaultAgent: CodeActAgent
@@ -66,10 +66,10 @@ openhands:
     enableJupyter: true
     enableEditor: true
     enableCmd: true
-  
+
   # Sandbox/Runtime configuration
   sandbox:
-    runtime: docker
+    runtime: kubernetes
     # Keep runtime alive after session ends
     keepAlive: false
     # Maximum iterations per task
@@ -80,19 +80,19 @@ openhands:
     enableGPU: false
     # CUDA visible devices (for GPU)
     cudaVisibleDevices: ""
-  
+
   # File store configuration
   fileStore:
     type: local
     path: /.openhands
-  
+
   # Browser configuration
   browser:
     enabled: true
-  
+
   # JWT secret for authentication (generate a strong random string)
   jwtSecret: ""
-  
+
   # Conversation settings
   conversation:
     maxConcurrent: 3
@@ -102,7 +102,7 @@ openhands:
 kubernetes:
   # Namespace for runtime pods
   namespace: default
-  
+
   # Persistent Volume Claim configuration
   pvc:
     # Storage size for workspace and data
@@ -111,7 +111,7 @@ kubernetes:
     storageClass: ""
     # Access mode
     accessMode: ReadWriteOnce
-  
+
   # Resource configuration for runtime pods
   runtimeResources:
     cpu:
@@ -120,16 +120,16 @@ kubernetes:
     memory:
       request: "1Gi"
       limit: "4Gi"
-  
+
   # Node selector for runtime pods
   runtimeNodeSelector: {}
-  
+
   # Tolerations for runtime pods
   runtimeTolerations: []
-  
+
   # Image pull secret for runtime pods (if using private registry)
   runtimeImagePullSecret: ""
-  
+
   # Run runtime pods in privileged mode (required for Docker-in-Docker)
   runtimePrivileged: false
 
@@ -220,7 +220,7 @@ affinity: {}
 
 # Docker socket mounting (required for runtime containers)
 dockerSocket:
-  enabled: true
+  enabled: false
   hostPath: /var/run/docker.sock
 
 # Persistence configuration
@@ -230,7 +230,7 @@ persistence:
   # Existing claim name (if using existing PVC)
   existingClaim: ""
   # Storage class for workspace/data
-  storageClass: ""
+  storageClass: "rbd"
   # Access mode
   accessMode: ReadWriteOnce
   # Storage size

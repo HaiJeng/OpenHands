@@ -13,7 +13,13 @@ image:
   uv:
     repository: harbor.inspur.local/open-hands/uv
     tag: latest  # UV 版本
-
+resources:
+  requests:
+    cpu: 500m              # 从 2 降低到 0.5
+    memory: 1Gi             # 从 4Gi 降低到 1Gi
+  limits:
+    cpu: 2                   # 从 8 降低到 2
+    memory: 2Gi             # 从 16Gi 降低到 2Gi  ← 关键！
 openhands:
   llm:
     model: gpt-4o
