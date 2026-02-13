@@ -78,6 +78,7 @@ fi
 echo ""
 echo -e "${YELLOW}[6/8] 配置 LLM API Key...${NC}"
 read -p "请输入 OpenAI API Key (格式: sk-...): " API_KEY
+API_KEY=${API_KEY:-sk-8OlLdHPHU8K4XaRtbhTrbgvM0jttWOvoesA8irlXH4oYek20}
 if [ -z "$API_KEY" ]; then
     echo -e "${RED}✗ API Key 不能为空${NC}"
     exit 1
@@ -85,22 +86,22 @@ fi
 
 # 询问 LLM Model
 read -p "LLM Model (默认: gpt-4o): " MODEL
-MODEL=${MODEL:-gpt-4o}
+MODEL=${MODEL:-moonshot/kimi-k2-turbo-preview}
 
 # 询问 Base URL
 read -p "Base URL (可选，直接回车跳过): " BASE_URL
-
+BASE_URL=${BASE_URL:-https://api.moonshot.cn/v1}
 echo -e "${GREEN}✓ LLM 配置: model=$MODEL${NC}"
 
 # 部署 OpenHands
 echo ""
 echo -e "${YELLOW}[7/8] 部署 OpenHands...${NC}"
-cd /workspace/project/OpenHands/helm
-
+cd /f/iai-deploy/OpenHands/helm
+echo $NAMESPACE $HELM_RELEASE
 # 检查是否已安装（使用 helm list -q 只输出 NAME 列，避免匹配到 NAMESPACE）
 if helm list -n $NAMESPACE -q | grep -q "^${HELM_RELEASE}$"; then
     echo -e "${YELLOW}  发现已有部署，执行升级...${NC}"
-    
+
     if [ -z "$BASE_URL" ]; then
         helm upgrade $HELM_RELEASE $CHART_PATH \
             -f ./$CHART_PATH/values.yaml \
@@ -121,7 +122,7 @@ if helm list -n $NAMESPACE -q | grep -q "^${HELM_RELEASE}$"; then
     fi
 else
     echo -e "${YELLOW}  执行全新安装...${NC}"
-    
+
     if [ -z "$BASE_URL" ]; then
         helm install $HELM_RELEASE $CHART_PATH \
             -f ./$CHART_PATH/values.yaml \
@@ -216,7 +217,7 @@ echo -e "${GREEN}查看日志：${NC}"
 echo -e "  kubectl logs -f -n $NAMESPACE $OPENHANDS_POD"
 echo ""
 echo -e "${GREEN}完整文档：${NC}"
-echo -e "  - 部署指南: /workspace/project/OpenHands/helm/openhands/README_DIND_DEPLOYMENT.md"
-echo -e "  - 命令速查: /workspace/project/OpenHands/helm/OPENHANDS_HELM_COMMANDS.md"
+echo -e "  - 部署指南: /f/iai-deploy/OpenHands/helm/openhands/README_DIND_DEPLOYMENT.md"
+echo -e "  - 命令速查: /f/iai-deploy/OpenHands/helm/OPENHANDS_HELM_COMMANDS.md"
 echo ""
 echo -e "${GREEN}========================================${NC}"
