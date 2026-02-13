@@ -42,8 +42,6 @@ spec:
           containerPort: {{ .Values.service.port }}
           protocol: TCP
         env:
-        - name: AGENT_SERVER_IMAGE_REPOSITORY
-          value: "{{ .Values.image.agentServer.repository }}:{{ .Values.image.agentServer.tag }}"
         - name: WORKSPACE_MOUNT_PATH
           value: {{ .Values.openhands.workspace.base | quote }}
         - name: WORKSPACE_BASE
