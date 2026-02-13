@@ -2,16 +2,21 @@
 
 ## 问题分析
 
-根据日志分析，发现以下主要问题：
+根据最新日志分析 (`/workspace/openhands.log`)，发现以下主要问题：
 
-### 1. Docker 连接错误
-**错误**: `docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))`
+### 1. **Docker Socket 权限错误** (核心问题)
+**错误**: `docker.errors.DockerException: Error fetching server API version: (Connection aborted., PermissionError(13, Permission denied))`
 
-**原因**: OpenHands 无法访问 Docker socket，导致无法创建运行时容器。
+**根本原因**: 
+- Docker socket (`/var/run/docker.sock`) 属于 `root:docker` 组，权限为 `srw-rw----`
+- 默认 `values.yaml` 配置强制容器以非root用户 (UID 42420) 运行
+- 用户42420不在docker组中，无法访问Docker socket
+- `deployment.yaml` 第60行设置 `SANDBOX_USER_ID: "0"` 仅为sandbox容器设置，不影响主容器
 
 **修复**: 
-- 启用 Docker socket 挂载 (`dockerSocket.enabled: true`)
-- 启用运行时特权模式 (`kubernetes.runtimePrivileged: true`)
+- **方案1（推荐）**: 使用 `values-dind-fixed.yaml` - 移除runAsUser限制，允许访问Docker socket
+- **方案2（测试用）**: 使用 `values-root-unsafe.yaml` - 容器完全以root运行
+- **方案3**: 修改宿主机Docker socket权限（需要在每个节点操作）
 
 ### 2. 密钥配置缺失
 **错误**: `⚠️ OH_SECRET_KEY was not defined. Secrets will not be persisted between restarts.`
@@ -19,8 +24,8 @@
 **原因**: 缺少必要的密钥配置。
 
 **修复**: 
-- 添加 `OH_SECRET_KEY` 环境变量
-- 配置强密钥用于生产环境
+- 添加 `openhands.jwtSecret` 和 `openhands.secretKey`
+- 使用 `openssl rand -base64 32` 生成强密钥
 
 ### 3. 网络连接超时
 **错误**: `HTTP error on github API: ConnectError : [Errno -3] Temporary failure in name resolution`
@@ -28,51 +33,88 @@
 **原因**: DNS 解析问题或网络连接超时。
 
 **修复**: 
-- 配置可靠的 DNS 服务器
+- 配置可靠的 DNS 服务器 (8.8.8.8, 8.8.4.4)
 - 增加 API 调用超时时间
-- 配置代理（如需要）
 
 ## 修复配置
 
-### 1. 基础修复 (values.yaml)
+### 快速修复（推荐）
+
+使用提供的快速修复脚本：
+
+```bash
+cd /workspace/project/OpenHands/helm
+./quick-fix.sh
+```
+
+该脚本会自动：
+1. 检查依赖和当前部署状态
+2. 获取配置信息
+3. 生成安全密钥
+4. 部署或升级 OpenHands
+5. 验证部署状态
+
+### 1. Docker 权限修复 (values-dind-fixed.yaml)
 
 ```yaml
-# 启用 Docker socket
+# 移除用户限制（推荐）
+# 允许容器以镜像默认用户运行，可以访问Docker socket
+podSecurityContext:
+  fsGroup: 42420
+  # 不设置 runAsUser，让容器以镜像默认用户运行
+
+securityContext:
+  runAsNonRoot: false  # 允许以root运行（Docker访问需要）
+  # runAsUser: 42420  # 注释掉这行
+
+# 确保Docker socket已启用
 dockerSocket:
   enabled: true
   hostPath: /var/run/docker.sock
-
-# 启用运行时特权模式
-kubernetes:
-  runtimePrivileged: true
-
-# 添加密钥配置
-openhands:
-  jwtSecret: "your-secure-jwt-secret-here"
-  secretKey: "your-secure-openhands-secret-key"
 ```
 
-### 2. 网络配置
+### 2. 使用修复配置文件部署
+
+```bash
+# 使用修复配置部署
+helm install openhands ./openhands \
+  -f values.yaml \
+  -f values-dind-fixed.yaml \
+  --namespace openhands \
+  --create-namespace \
+  --set openhands.llm.apiKey="your-actual-api-key" \
+  --set openhands.jwtSecret="$(openssl rand -base64 32)" \
+  --set openhands.secretKey="$(openssl rand -base64 32)"
+```
+
+### 3. Root 模式配置 (values-root-unsafe.yaml)
+
+仅用于测试/开发：
+
+```bash
+# ⚠️ 不安全，仅用于测试
+helm install openhands ./openhands \
+  -f values.yaml \
+  -f values-root-unsafe.yaml \
+  --namespace openhands \
+  --create-namespace
+```
+
+### 4. 网络配置
+
+在 `values-dind-fixed.yaml` 中已包含：
 
 ```yaml
 network:
   dns:
     servers:
-      - 8.8.8.8
-      - 8.8.4.4
+    - 8.8.8.8
+    - 8.8.4.4
   timeouts:
     githubApi: 60
     gitlabApi: 60
     general: 120
 ```
-
-### 3. 生产环境推荐配置
-
-使用提供的 `values-production-fixed.yaml` 文件，包含：
-- 高可用性配置
-- 资源限制优化
-- 网络超时修复
-- 安全加固
 
 ## 部署步骤
 
