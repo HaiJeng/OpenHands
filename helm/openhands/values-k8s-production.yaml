@@ -1,0 +1,251 @@
+# OpenHands Kubernetes Runtime 部署配置
+# 基于 my-values.yaml，使用 Kubernetes runtime（不需要 Docker socket）
+
+## 镜像配置（使用您的私有Harbor仓库）
+image:
+  repository: harbor.inspur.local/open-hands/openhands
+  tag: 1.3.2
+  pullPolicy: IfNotPresent
+  
+  runtime:
+    repository: harbor.inspur.local/open-hands/runtime
+    tag: main-nikolaik
+    pullPolicy: IfNotPresent
+  
+  agentServer:
+    repository: harbor.inspur.local/open-hands/agent-server
+    tag: 1.10.0-python
+    pullPolicy: IfNotPresent
+  
+  uv:
+    repository: harbor.inspur.local/open-hands/uv
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## OpenHands 核心配置
+openhands:
+  # LLM 配置
+  llm:
+    model: gpt-4o
+    apiKey: "sk-your-api-key-here"  # ⚠️ 替换为实际的 API Key
+    temperature: 0.0
+    maxTokens: 0
+  
+  # 工作区配置
+  workspace:
+    base: /opt/workspace_base
+    mountPath: /workspace
+    initGit: true
+  
+  # ⭐ 关键配置：使用 Kubernetes runtime
+  sandbox:
+    runtime: kubernetes  # ✅ 使用 Kubernetes runtime（不需要 Docker socket）
+    keepAlive: false
+    maxIterations: 500
+    maxBudget: 0.0
+    enableGPU: false
+    cudaVisibleDevices: ""
+  
+  # 文件存储配置
+  fileStore:
+    type: local
+    path: /.openhands
+  
+  # 浏览器配置
+  browser:
+    enabled: true
+  
+  # Agent 配置
+  agent:
+    defaultAgent: CodeActAgent
+    enableBrowsing: true
+    enableJupyter: true
+    enableEditor: true
+    enableCmd: true
+  
+  # 安全配置
+  security:
+    enableAnalyzer: true
+    analyzerType: llm
+  
+  # 会话配置
+  conversation:
+    maxConcurrent: 3
+    maxAgeSeconds: 86400  # 1 天
+
+## Kubernetes Runtime 配置
+kubernetes:
+  # Runtime Pod 的命名空间（可选，默认与 OpenHands 在同一命名空间）
+  namespace: default
+  
+  # PVC 配置
+  pvc:
+    storageSize: 10Gi
+    storageClass: ""  # 使用默认 StorageClass，或指定如 "rbd"
+    accessMode: ReadWriteOnce
+  
+  # Runtime Pod 资源配置
+  runtimeResources:
+    cpu:
+      request: "500m"
+      limit: "2"
+    memory:
+      request: "1Gi"
+      limit: "2Gi"
+  
+  # Runtime Pod 需要特权模式（用于某些操作）
+  runtimePrivileged: true
+  
+  # Runtime Pod 的节点选择器（可选）
+  runtimeNodeSelector: {}
+  
+  # Runtime Pod 的容忍度（可选）
+  runtimeTolerations: []
+
+## ⭐ 关键：禁用 Docker Socket 挂载
+# 使用 Kubernetes runtime 时，不需要访问 Docker socket
+dockerSocket:
+  enabled: false  # ✅ 禁用 Docker socket
+
+## 部署配置
+replicaCount: 1
+
+## 更新策略
+updateStrategy:
+  type: Recreate
+
+## 服务账户
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## 镜像拉取密钥（如果需要）
+imagePullSecrets: []
+# - name: harbor-registry-secret
+
+## Pod 安全上下文
+podSecurityContext:
+  fsGroup: 42420
+  runAsUser: 42420
+  runAsGroup: 42420
+
+## 容器安全上下文
+securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 42420
+  capabilities:
+    drop:
+      - ALL
+
+## 服务配置
+service:
+  type: NodePort        # 使用 NodePort
+  port: 3000
+  # nodePort: 30030    # 可选：指定固定 NodePort
+  sessionAffinity: ClientIP  # 推荐：同一客户端连接同一 Pod
+  annotations: {}
+
+## Ingress 配置（可选）
+ingress:
+  enabled: false
+  # className: "nginx"
+  # annotations: {}
+  # hosts:
+  #   - host: openhands.example.com
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  # tls: []
+
+## 资源配置
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+## 水平 Pod 自动扩缩容
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+## 节点选择器
+nodeSelector: {}
+
+## 容忍度
+tolerations: []
+
+## 亲和性
+affinity: {}
+
+## 持久化存储配置
+persistence:
+  enabled: true
+  
+  # 数据持久化（配置、对话、文件存储等）
+  data:
+    enabled: true
+    existingClaim: ""
+    storageClass: ""  # 使用默认 StorageClass
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  # 工作区持久化（用户代码、项目等）
+  workspace:
+    enabled: true
+    existingClaim: ""
+    storageClass: ""  # 使用默认 StorageClass
+    accessMode: ReadWriteOnce
+    size: 10Gi
+
+## 网络配置
+network:
+  # 代理配置
+  proxy:
+    enabled: false
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: "localhost,127.0.0.1,.cluster.local"
+  
+  # DNS 配置
+  dns:
+    servers: []
+    # - 8.8.8.8
+    # - 8.8.4.4
+  
+  # 超时配置
+  timeouts:
+    githubApi: 30
+    gitlabApi: 30
+    general: 60
+
+## 额外环境变量
+extraEnv: []
+
+## 额外卷挂载
+extraVolumeMounts: []
+
+## 额外卷
+extraVolumes: []
+
+## ConfigMap 配置
+config:
+  enabled: false
+
+## Secret 配置
+secret:
+  enabled: false
+
+## ⚠️ 重要：密钥配置（推荐使用命令行传入）
+# openhands:
+#   jwtSecret: ""     # 使用: --set openhands.jwtSecret="$(openssl rand -base64 32)"
+#   secretKey: ""      # 使用: --set openhands.secretKey="$(openssl rand -base64 32)"
