@@ -8,6 +8,9 @@ global:
   imagePullSecrets: []
   # - name: myRegistryKeySecretName
 
+# Deployment升级策略
+updateStrategy:
+  type: Recreate
 ## @section Image parameters
 image:
   # Main OpenHands application image
@@ -111,7 +114,7 @@ kubernetes:
     # Storage size for workspace and data
     storageSize: 10Gi
     # Storage class (leave empty for default)
-    storageClass: ""
+    storageClass: "rbd"
     # Access mode
     accessMode: ReadWriteOnce
 
@@ -273,14 +276,14 @@ network:
     httpProxy: ""
     httpsProxy: ""
     noProxy: "localhost,127.0.0.1,.cluster.local"
-  
+
   # DNS configuration
   dns:
     # Custom DNS servers
     servers: []
     # - 8.8.8.8
     # - 8.8.4.4
-    
+
   # Timeout settings for external API calls (seconds)
   timeouts:
     githubApi: 30
