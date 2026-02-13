@@ -10,8 +10,35 @@ _LEMONADE_MODEL_PREFIX = 'lemonade/'
 
 
 @lru_cache(maxsize=1)
+def is_running_in_kubernetes() -> bool:
+    """Best-effort detection for Kubernetes containers."""
+    # Check for Kubernetes service account token
+    if Path('/var/run/secrets/kubernetes.io/serviceaccount/token').exists():
+        return True
+    
+    # Check for Kubernetes environment variables
+    if os.environ.get('KUBERNETES_SERVICE_HOST'):
+        return True
+    
+    # Check cgroup for kubepods
+    try:
+        with Path('/proc/self/cgroup').open('r', encoding='utf-8') as cgroup_file:
+            for line in cgroup_file:
+                if 'kubepods' in line:
+                    return True
+    except FileNotFoundError:
+        pass
+    
+    return False
+
+
+@lru_cache(maxsize=1)
 def is_running_in_docker() -> bool:
     """Best-effort detection for Docker containers."""
+    # If running in Kubernetes, don't report as Docker
+    if is_running_in_kubernetes():
+        return False
+    
     docker_env_markers = (
         Path('/.dockerenv'),
         Path('/run/.containerenv'),
@@ -25,7 +52,7 @@ def is_running_in_docker() -> bool:
     try:
         with Path('/proc/self/cgroup').open('r', encoding='utf-8') as cgroup_file:
             for line in cgroup_file:
-                if any(token in line for token in ('docker', 'containerd', 'kubepods')):
+                if any(token in line for token in ('docker', 'containerd')):
                     return True
     except FileNotFoundError:
         pass
