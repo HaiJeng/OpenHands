@@ -53,6 +53,9 @@ openhands:
         value: "tcp://docker-dind.openhands-dev.svc.cluster.local:2375"  # ⭐ 注意：openhands-dev 命名空间
       - name: DOCKER_TLS_CERTDIR
         value: ""  # 禁用 TLS 以简化配置
+      # ⭐ 禁用 host-gateway（Kubernetes/DinD 不支持）
+      - name: SANDBOX_DISABLE_EXTRA_HOSTS
+        value: "1"
 
   # 文件存储配置
   fileStore:
