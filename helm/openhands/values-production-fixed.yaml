@@ -1,0 +1,203 @@
+# Production-ready OpenHands Helm values with fixes for common issues
+# This configuration addresses the Docker connection and network issues found in logs
+
+# Inherit from base values
+# helm install openhands ./openhands -f values.yaml -f values-production-fixed.yaml
+
+## Image configuration
+image:
+  # Use specific tags instead of latest for production stability
+  tag: "0.1.0"
+  agentServer:
+    tag: "0.1.0"
+  runtime:
+    tag: "0.1.0"
+
+## Critical fixes for Docker connectivity issues
+# Enable Docker socket mounting (fixes: docker.errors.DockerException)
+dockerSocket:
+  enabled: true
+  hostPath: /var/run/docker.sock
+
+## Security and authentication fixes
+openhands:
+  # Set strong secrets for production (fixes: OH_SECRET_KEY warning)
+  jwtSecret: "your-secure-jwt-secret-here-minimum-32-characters"
+  secretKey: "your-secure-openhands-secret-key-minimum-32-chars"
+  
+  # LLM configuration - set your actual API key
+  llm:
+    model: "gpt-4o"
+    apiKey: ""  # Set your actual API key here
+    baseURL: ""  # Set if using custom LLM provider
+  
+  # Runtime configuration
+  sandbox:
+    runtime: kubernetes
+    # Enable privileged mode for Docker-in-Docker (required for runtime containers)
+    # This fixes container creation issues
+    
+  # File store configuration
+  fileStore:
+    type: local
+    path: /.openhands
+
+## Kubernetes-specific configuration
+kubernetes:
+  # Namespace for runtime pods
+  namespace: openhands
+  
+  # Enable privileged mode for runtime pods (fixes Docker connectivity)
+  runtimePrivileged: true
+  
+  # Resource configuration for runtime pods
+  runtimeResources:
+    cpu:
+      request: "2"
+      limit: "8"
+    memory:
+      request: "2Gi"
+      limit: "8Gi"
+  
+  # Image pull secret if using private registry
+  runtimeImagePullSecret: ""
+
+## Network configuration (fixes GitHub/GitLab API timeouts)
+network:
+  # Proxy configuration (if behind corporate proxy)
+  proxy:
+    enabled: false
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: "localhost,127.0.0.1,.cluster.local,.svc"
+  
+  # DNS configuration for reliable external access
+  dns:
+    # Use reliable public DNS servers
+    servers:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+  
+  # Timeout settings for external API calls (seconds)
+  timeouts:
+    githubApi: 60  # Increased timeout for GitHub API
+    gitlabApi: 60  # Increased timeout for GitLab API
+    general: 120   # General timeout
+
+## Deployment configuration
+replicaCount: 2  # Run multiple replicas for high availability
+
+## Resource limits for main application
+resources:
+  limits:
+    cpu: 4
+    memory: 8Gi
+  requests:
+    cpu: 2
+    memory: 4Gi
+
+## Persistence configuration
+persistence:
+  enabled: true
+  
+  # Data persistence (configuration, conversations, file store)
+  data:
+    enabled: true
+    storageClass: "fast-ssd"  # Use appropriate storage class
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  # Workspace persistence (user code, projects)
+  workspace:
+    enabled: true
+    storageClass: "fast-ssd"  # Use appropriate storage class
+    accessMode: ReadWriteOnce
+    size: 50Gi
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+  annotations: {}
+
+## Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"  # Use your ingress controller
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+  hosts:
+    - host: openhands.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: openhands-tls
+      hosts:
+        - openhands.yourdomain.com
+
+## Pod security context
+podSecurityContext:
+  fsGroup: 42420
+  runAsUser: 42420
+  runAsGroup: 42420
+
+## Container security context
+securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 42420
+  capabilities:
+    drop:
+    - ALL
+
+## Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+## Node affinity for better scheduling
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - openhands
+        topologyKey: kubernetes.io/hostname
+
+## Additional environment variables
+extraEnv:
+  # Add any additional environment variables here
+  # - name: CUSTOM_VAR
+  #   value: "custom-value"
+
+## Health check configuration (increased timeouts for stability)
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 5

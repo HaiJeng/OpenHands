@@ -569,11 +569,14 @@ class DockerSandboxServiceInjector(SandboxServiceInjector):
         ),
     )
     extra_hosts: dict[str, str] = Field(
-        default_factory=lambda: {'host.docker.internal': 'host-gateway'},
+        default_factory=lambda: {'host.docker.internal': 'host-gateway'}
+        if not os.getenv('SANDBOX_DISABLE_EXTRA_HOSTS')
+        else {},
         description=(
             'Extra hostname mappings to add to agent-server containers. '
             'This allows containers to resolve hostnames like host.docker.internal '
             'for LAN deployments and MCP connections. '
+            'Set SANDBOX_DISABLE_EXTRA_HOSTS=1 to disable this feature for Kubernetes/DinD deployments. '
             'Format: {"hostname": "ip_or_gateway"}'
         ),
     )

@@ -1,0 +1,29 @@
+# Remote Runtime Configuration Template
+# 
+# This is a configuration template for running OpenHands in remote/runtime environments
+# (e.g., containerized deployments, cloud runtimes, DinD environments)
+#
+# Usage:
+#   cp config.runtime-remote.toml config.toml
+#   # Then restart OpenHands service
+
+[workspace]
+workspace_base = "/workspace"
+
+[default_agent]
+spec = "CodeActAgent"
+
+[runtime]
+# CRITICAL: Use remote runtime instead of local Docker
+# This is required for containerized/cloud environments where:
+# - No local Docker daemon is available
+# - Running in DinD (Docker-in-Docker) mode
+# - Using a remote runtime service
+runtime = "remote"
+
+[sandbox]
+# Sandbox configuration for remote environment
+use_host_network = false
+base_container_image = "nikolaik/python-nodejs:python3.12-nodejs22"
+
+# Note: Additional configuration options available in config.template.toml

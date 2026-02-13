@@ -8,6 +8,9 @@ global:
   imagePullSecrets: []
   # - name: myRegistryKeySecretName
 
+# Deployment升级策略
+updateStrategy:
+  type: Recreate
 ## @section Image parameters
 image:
   # Main OpenHands application image
@@ -93,6 +96,9 @@ openhands:
   # JWT secret for authentication (generate a strong random string)
   jwtSecret: ""
 
+  # Secret key for OpenHands (generate a strong random string)
+  secretKey: ""
+
   # Conversation settings
   conversation:
     maxConcurrent: 3
@@ -108,7 +114,7 @@ kubernetes:
     # Storage size for workspace and data
     storageSize: 10Gi
     # Storage class (leave empty for default)
-    storageClass: ""
+    storageClass: "rbd"
     # Access mode
     accessMode: ReadWriteOnce
 
@@ -131,7 +137,7 @@ kubernetes:
   runtimeImagePullSecret: ""
 
   # Run runtime pods in privileged mode (required for Docker-in-Docker)
-  runtimePrivileged: false
+  runtimePrivileged: true
 
 ## @section Deployment parameters
 replicaCount: 1
@@ -261,6 +267,28 @@ extraEnv: []
 #     secretKeyRef:
 #       name: my-secret
 #       key: secret-key
+
+# Network configuration for external API access
+network:
+  # Enable proxy configuration
+  proxy:
+    enabled: false
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: "localhost,127.0.0.1,.cluster.local"
+
+  # DNS configuration
+  dns:
+    # Custom DNS servers
+    servers: []
+    # - 8.8.8.8
+    # - 8.8.4.4
+
+  # Timeout settings for external API calls (seconds)
+  timeouts:
+    githubApi: 30
+    gitlabApi: 30
+    general: 60
 
 # Volume mounts to add
 extraVolumeMounts: []

@@ -1,0 +1,225 @@
+# OpenHands 连接 DinD 服务的配置
+# 使用方法：
+# 1. 确保已部署 DinD 服务（dind-service.yaml）
+# 2. 运行: helm upgrade openhands ./openhands -f values-dind.yaml --namespace openhands-dev
+
+## 核心：修改
+# ✅ runtime 改为 docker（连接远程 DinD）
+# ✅ 添加 DOCKER_HOST 环境变量
+# ✅ 添加 containerEnv 配置
+
+openhands:
+  # ✅ 关键修改：使用 Docker Runtime（连接远程 DinD）
+  sandbox:
+    runtime: docker  # 改为 docker，连接到远程 DinD 服务
+    keepAlive: false
+    maxIterations: 500
+    maxBudget: 0.0
+    enableGPU: false
+    cudaVisibleDevices: ""
+    
+    # ✅ 添加环境变量以连接到远程 DinD 服务
+    containerEnv:
+      # Docker Daemon 连接配置
+      - name: DOCKER_HOST
+        value: "tcp://docker-dind.openhands-dev.svc.cluster.local:2375"  # 注意：openhands-dev 命名空间
+      - name: DOCKER_TLS_CERTDIR
+        value: ""  # 禁用 TLS 以简化配置
+  
+  # LLM 配置
+  llm:
+    model: gpt-4o
+    apiKey: ""  # 在命令行设置: --set openhands.llm.apiKey="sk-your-key"
+    temperature: 0.0
+    maxTokens: 0
+  
+  # 工作区配置
+  workspace:
+    base: /opt/workspace_base
+    mountPath: /workspace
+    initGit: true
+  
+  # 安全配置
+  security:
+    enableAnalyzer: true
+    analyzerType: llm
+  
+  # Agent 配置
+  agent:
+    defaultAgent: CodeActAgent
+    enableBrowsing: true
+    enableJupyter: true
+    enableEditor: true
+    enableCmd: true
+  
+  # 文件存储配置
+  fileStore:
+    type: local
+    path: /.openhands
+  
+  # 浏览器配置
+  browser:
+    enabled: true
+  
+  # 会话配置
+  conversation:
+    maxConcurrent: 3
+    maxAgeSeconds: 864000  # 10 days
+
+## 镜像配置
+image:
+  repository: docker.openhands.dev/openhands/openhands
+  tag: latest
+  pullPolicy: IfNotPresent
+  
+  runtime:
+    repository: ghcr.io/openhands/runtime
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  agentServer:
+    repository: ghcr.io/openhands/agent-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  uv:
+    repository: ghcr.io/astral-sh/uv
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## ✅ 关键：禁用 Docker Socket 挂载（使用远程 DinD 代替）
+dockerSocket:
+  enabled: false
+
+## 部署配置
+replicaCount: 1
+
+## 更新策略
+updateStrategy:
+  type: Recreate
+
+## 服务账户
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## 镜像拉取密钥
+imagePullSecrets: []
+
+## Pod 安全上下文（连接远程 DinD，不需要特权模式）
+podSecurityContext:
+  fsGroup: 42420
+  runAsUser: 42420
+  runAsGroup: 42420
+
+## 容器安全上下文
+securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 42420
+  capabilities:
+    drop:
+      - ALL
+
+## 服务配置
+service:
+  type: ClusterIP
+  port: 3000
+  annotations: {}
+
+## Ingress 配置
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: openhands.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+## 资源配置
+resources:
+  limits:
+    cpu: 4
+    memory: 8Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+
+## 自动扩缩容
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+## 节点选择器
+nodeSelector: {}
+
+## 容忍度
+tolerations: []
+
+## 亲和性
+affinity: {}
+
+## 持久化存储配置
+persistence:
+  enabled: true
+  
+  # 数据持久化
+  data:
+    enabled: true
+    existingClaim: ""
+    storageClass: "rbd"
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  # 工作区持久化
+  workspace:
+    enabled: true
+    existingClaim: ""
+    storageClass: "rbd"
+    accessMode: ReadWriteOnce
+    size: 10Gi
+
+## 网络配置
+network:
+  # 代理配置
+  proxy:
+    enabled: false
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: "localhost,127.0.0.1,.cluster.local"
+  
+  # DNS 配置
+  dns:
+    servers: []
+  
+  # 超时配置
+  timeouts:
+    githubApi: 30
+    gitlabApi: 30
+    general: 60
+
+## 额外环境变量
+extraEnv: []
+
+## 额外卷挂载
+extraVolumeMounts: []
+
+## 额外卷
+extraVolumes: []
+
+## ConfigMap 配置
+config:
+  enabled: false
+
+## Secret 配置
+secret:
+  enabled: false

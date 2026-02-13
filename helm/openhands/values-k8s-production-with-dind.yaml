@@ -1,0 +1,256 @@
+# OpenHands Kubernetes Production 配置 - 连接 DinD 服务
+# 使用方法：
+# helm upgrade openhands ./openhands \
+#   -f ./openhands/values.yaml \
+#   -f ./openhands/values-k8s-production.yaml \
+#   -f ./openhands/values-k8s-production-with-dind.yaml \
+#   --namespace openhands-dev
+
+## 镜像配置（使用您的私有Harbor仓库）
+image:
+  repository: harbor.inspur.local/open-hands/openhands
+  tag: v1.3.4
+  pullPolicy: IfNotPresent
+  
+  runtime:
+    repository: harbor.inspur.local/open-hands/runtime
+    tag: main-nikolaik
+    pullPolicy: IfNotPresent
+  
+  agentServer:
+    repository: harbor.inspur.local/open-hands/agent-server
+    tag: v1.10.0-python
+    pullPolicy: IfNotPresent
+  
+  uv:
+    repository: harbor.inspur.local/open-hands/uv
+    tag: latest
+    pullPolicy: IfNotPresent
+
+## OpenHands 核心配置
+openhands:
+  # LLM 配置
+  llm:
+    model: gpt-4o
+    apiKey: "sk-your-api-key-here"  # ⚠️ 替换为实际的 API Key
+    temperature: 0.0
+    maxTokens: 0
+  
+  # 工作区配置
+  workspace:
+    base: /opt/workspace_base
+    mountPath: /workspace
+    initGit: true
+  
+  # ⭐ 关键配置：使用 Docker Runtime（连接远程 DinD）
+  sandbox:
+    runtime: docker  # ✅ 改为 docker，连接到远程 DinD 服务
+    keepAlive: false
+    maxIterations: 500
+    maxBudget: 0.0
+    enableGPU: false
+    cudaVisibleDevices: ""
+    
+    # ✅ 添加环境变量以连接到远程 DinD 服务
+    containerEnv:
+      # Docker Daemon 连接配置
+      - name: DOCKER_HOST
+        value: "tcp://docker-dind.openhands-dev.svc.cluster.local:2375"  # ⭐ 注意：openhands-dev 命名空间
+      - name: DOCKER_TLS_CERTDIR
+        value: ""  # 禁用 TLS 以简化配置
+  
+  # 文件存储配置
+  fileStore:
+    type: local
+    path: /.openhands
+  
+  # 浏览器配置
+  browser:
+    enabled: true
+  
+  # Agent 配置
+  agent:
+    defaultAgent: CodeActAgent
+    enableBrowsing: true
+    enableJupyter: true
+    enableEditor: true
+    enableCmd: true
+  
+  # 安全配置
+  security:
+    enableAnalyzer: true
+    analyzerType: llm
+  
+  # 会话配置
+  conversation:
+    maxConcurrent: 3
+    maxAgeSeconds: 86400  # 1 天
+    jwtSecret: "FKDNf/E7cwfXqhlNKta2twD4NQ+KXvVG4tmzku38Z58="
+    secretKey: "FKDNf/E7cwfXqhlNKta2twD4NQ+KXvVG4tmzku38Z58="
+
+## Kubernetes Runtime 配置（这里不使用，仅作参考）
+kubernetes:
+  namespace: openhands-dev  # ⭐ 您的命名空间
+  
+  pvc:
+    storageSize: 10Gi
+    storageClass: "rbd"
+    accessMode: ReadWriteOnce
+  
+  runtimeResources:
+    cpu:
+      request: "500m"
+      limit: "2"
+    memory:
+      request: "1Gi"
+      limit: "2Gi"
+  
+  runtimePrivileged: true  # ⚠️ 连接远程 DinD 时，OpenHands 不需要特权模式
+  runtimeNodeSelector: {}
+  runtimeTolerations: []
+
+## ⭐ 关键：禁用 Docker Socket 挂载（使用远程 DinD 代替）
+dockerSocket:
+  enabled: false  # ✅ 禁用本地 Docker socket
+
+## 部署配置
+replicaCount: 1
+
+## 更新策略
+updateStrategy:
+  type: Recreate
+
+## 服务账户
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## 镜像拉取密钥（如果需要）
+imagePullSecrets: []
+# - name: harbor-registry-secret
+
+## Pod 安全上下文（连接远程 DinD，不需要特权模式）
+podSecurityContext:
+  fsGroup: 42420
+  runAsUser: 42420
+  runAsGroup: 42420
+
+## 容器安全上下文
+securityContext:
+  privileged: false  # ✅ 连接远程 DinD 时不需要特权
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 42420
+  capabilities:
+    drop:
+      - ALL
+
+## 服务配置
+service:
+  type: NodePort              # ✅ 使用 NodePort 访问
+  port: 3000                 # Service Port (容器端口）
+  nodePort: 30030             # ✅ NodePort (外部访问端口，30000-32767)
+  sessionAffinity: ClientIP    # 推荐：同一客户端连接同一 Pod
+  annotations: {}
+
+## Ingress 配置（可选）
+ingress:
+  enabled: false
+  # className: "nginx"
+  # annotations: {}
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  # hosts:
+  #   - host: openhands.example.com
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  # tls: []
+  #   - secretName: openhands-tls
+  #     hosts:
+  #       - openhands.example.com
+
+## 资源配置
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+## 水平 Pod 自动扩缩容
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+## 节点选择器
+nodeSelector: {}
+
+## 容忍度
+tolerations: []
+
+## 亲和性
+affinity: {}
+
+## 持久化存储配置
+persistence:
+  enabled: true
+  
+  # 数据持久化（配置、对话、文件存储等）
+  data:
+    enabled: true
+    existingClaim: ""
+    storageClass: "rbd"  # 使用默认 StorageClass
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  # 工作区持久化（用户代码、项目等）
+  workspace:
+    enabled: true
+    existingClaim: ""
+    storageClass: "rbd"  # 使用默认 StorageClass
+    accessMode: ReadWriteOnce
+    size: 10Gi
+
+## 网络配置
+network:
+  # 代理配置
+  proxy:
+    enabled: false
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: "localhost,127.0.0.1,.cluster.local"
+  
+  # DNS 配置
+  dns:
+    servers: []
+    # - 8.8.8.8
+    # - 8.8.4.4
+  
+  # 超时配置
+  timeouts:
+    githubApi: 30
+    gitlabApi: 30
+    general: 60
+
+## 额外环境变量
+extraEnv: []
+
+## 额外卷挂载
+extraVolumeMounts: []
+
+## 额外卷
+extraVolumes: []
+
+## ConfigMap 配置
+config:
+  enabled: false
+
+## Secret 配置
+secret:
+  enabled: false

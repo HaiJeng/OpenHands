@@ -9,6 +9,8 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  strategy:
+    type: {{ .Values.updateStrategy.type }}
   selector:
     matchLabels:
       {{- include "openhands.selectorLabels" . | nindent 6 }}
@@ -40,8 +42,6 @@ spec:
           containerPort: {{ .Values.service.port }}
           protocol: TCP
         env:
-        - name: AGENT_SERVER_IMAGE_REPOSITORY
-          value: "{{ .Values.image.agentServer.repository }}:{{ .Values.image.agentServer.tag }}"
         - name: WORKSPACE_MOUNT_PATH
           value: {{ .Values.openhands.workspace.base | quote }}
         - name: WORKSPACE_BASE
@@ -72,6 +72,10 @@ spec:
         - name: JWT_SECRET
           value: {{ .Values.openhands.jwtSecret | quote }}
         {{- end }}
+        {{- if .Values.openhands.secretKey }}
+        - name: OH_SECRET_KEY
+          value: {{ .Values.openhands.secretKey | quote }}
+        {{- end }}
         {{- if .Values.openhands.llm.temperature }}
         - name: LLM_TEMPERATURE
           value: {{ .Values.openhands.llm.temperature | quote }}
@@ -87,6 +91,14 @@ spec:
         {{- if .Values.image.runtime.repository }}
         - name: RUNTIME_CONTAINER_IMAGE
           value: "{{ .Values.image.runtime.repository }}:{{ .Values.image.runtime.tag }}"
+        {{- end }}
+        {{- if .Values.image.agentServer.repository }}
+        - name: AGENT_SERVER_IMAGE_REPOSITORY
+          value: {{ .Values.image.agentServer.repository | quote }}
+        {{- end }}
+        {{- if .Values.image.agentServer.tag }}
+        - name: AGENT_SERVER_IMAGE_TAG
+          value: {{ .Values.image.agentServer.tag | quote }}
         {{- end }}
         {{- if .Values.openhands.security.enableAnalyzer }}
         - name: ENABLE_SECURITY_ANALYZER
@@ -120,8 +132,46 @@ spec:
         - name: CONVERSATION_MAX_AGE_SECONDS
           value: {{ .Values.openhands.conversation.maxAgeSeconds | quote }}
         {{- end }}
+        {{- if .Values.network.proxy.enabled }}
+        {{- if .Values.network.proxy.httpProxy }}
+        - name: HTTP_PROXY
+          value: {{ .Values.network.proxy.httpProxy | quote }}
+        - name: http_proxy
+          value: {{ .Values.network.proxy.httpProxy | quote }}
+        {{- end }}
+        {{- if .Values.network.proxy.httpsProxy }}
+        - name: HTTPS_PROXY
+          value: {{ .Values.network.proxy.httpsProxy | quote }}
+        - name: https_proxy
+          value: {{ .Values.network.proxy.httpsProxy | quote }}
+        {{- end }}
+        {{- if .Values.network.proxy.noProxy }}
+        - name: NO_PROXY
+          value: {{ .Values.network.proxy.noProxy | quote }}
+        - name: no_proxy
+          value: {{ .Values.network.proxy.noProxy | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.network.timeouts.githubApi }}
+        - name: GITHUB_API_TIMEOUT
+          value: {{ .Values.network.timeouts.githubApi | quote }}
+        {{- end }}
+        {{- if .Values.network.timeouts.gitlabApi }}
+        - name: GITLAB_API_TIMEOUT
+          value: {{ .Values.network.timeouts.gitlabApi | quote }}
+        {{- end }}
+        {{- if .Values.network.timeouts.general }}
+        - name: GENERAL_TIMEOUT
+          value: {{ .Values.network.timeouts.general | quote }}
+        {{- end }}
         {{- with .Values.extraEnv }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.openhands.sandbox.containerEnv }}
+        {{- range .Values.openhands.sandbox.containerEnv }}
+        - name: {{ .name }}
+          value: {{ .value | quote }}
+        {{- end }}
         {{- end }}
         {{- if .Values.secret.enabled }}
         {{- range $key, $value := .Values.secret.data }}
@@ -212,4 +262,10 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.network.dns.servers }}
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          {{- toYaml .Values.network.dns.servers | nindent 10 }}
       {{- end }}
