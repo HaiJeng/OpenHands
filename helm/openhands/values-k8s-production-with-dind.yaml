@@ -1,22 +1,27 @@
-# OpenHands Kubernetes Runtime 部署配置
-# 基于 my-values.yaml，使用 Kubernetes runtime（不需要 Docker socket）
+# OpenHands Kubernetes Production 配置 - 连接 DinD 服务
+# 使用方法：
+# helm upgrade openhands ./openhands \
+#   -f ./openhands/values.yaml \
+#   -f ./openhands/values-k8s-production.yaml \
+#   -f ./openhands/values-k8s-production-with-dind.yaml \
+#   --namespace openhands-dev
 
 ## 镜像配置（使用您的私有Harbor仓库）
 image:
   repository: harbor.inspur.local/open-hands/openhands
-  tag: 1.3.4
+  tag: v1.3.4
   pullPolicy: IfNotPresent
-
+  
   runtime:
     repository: harbor.inspur.local/open-hands/runtime
     tag: main-nikolaik
     pullPolicy: IfNotPresent
-
+  
   agentServer:
     repository: harbor.inspur.local/open-hands/agent-server
-    tag: 1.10.0-python
+    tag: v1.10.0-python
     pullPolicy: IfNotPresent
-
+  
   uv:
     repository: harbor.inspur.local/open-hands/uv
     tag: latest
@@ -30,13 +35,13 @@ openhands:
     apiKey: "sk-your-api-key-here"  # ⚠️ 替换为实际的 API Key
     temperature: 0.0
     maxTokens: 0
-
+  
   # 工作区配置
   workspace:
     base: /opt/workspace_base
     mountPath: /workspace
     initGit: true
-
+  
   # ⭐ 关键配置：使用 Docker Runtime（连接远程 DinD）
   sandbox:
     runtime: docker  # ✅ 改为 docker，连接到远程 DinD 服务
@@ -53,16 +58,16 @@ openhands:
         value: "tcp://docker-dind.openhands-dev.svc.cluster.local:2375"  # ⭐ 注意：openhands-dev 命名空间
       - name: DOCKER_TLS_CERTDIR
         value: ""  # 禁用 TLS 以简化配置
-
+  
   # 文件存储配置
   fileStore:
     type: local
     path: /.openhands
-
+  
   # 浏览器配置
   browser:
     enabled: true
-
+  
   # Agent 配置
   agent:
     defaultAgent: CodeActAgent
@@ -70,31 +75,28 @@ openhands:
     enableJupyter: true
     enableEditor: true
     enableCmd: true
-
+  
   # 安全配置
   security:
     enableAnalyzer: true
     analyzerType: llm
-
+  
   # 会话配置
   conversation:
     maxConcurrent: 3
     maxAgeSeconds: 86400  # 1 天
-  jwtSecret: "FKDNf/E7cwfXahlNKta2twD4NQ+KXvVG4tmzku38Z58="
-  secretKey: "FKDNf/E7cwfXahlNKta2twD4NQ+KXvVG4tmzku38Z58="
+    jwtSecret: "FKDNf/E7cwfXqhlNKta2twD4NQ+KXvVG4tmzku38Z58="
+    secretKey: "FKDNf/E7cwfXqhlNKta2twD4NQ+KXvVG4tmzku38Z58="
 
-## Kubernetes Runtime 配置
+## Kubernetes Runtime 配置（这里不使用，仅作参考）
 kubernetes:
-  # Runtime Pod 的命名空间（可选，默认与 OpenHands 在同一命名空间）
-  namespace: default
-
-  # PVC 配置
+  namespace: openhands-dev  # ⭐ 您的命名空间
+  
   pvc:
     storageSize: 10Gi
-    storageClass: "rbd"  # 使用默认 StorageClass，或指定如 "rbd"
+    storageClass: "rbd"
     accessMode: ReadWriteOnce
-
-  # Runtime Pod 资源配置
+  
   runtimeResources:
     cpu:
       request: "500m"
@@ -102,20 +104,14 @@ kubernetes:
     memory:
       request: "1Gi"
       limit: "2Gi"
-
-  # Runtime Pod 需要特权模式（用于某些操作）
-  runtimePrivileged: true
-
-  # Runtime Pod 的节点选择器（可选）
+  
+  runtimePrivileged: true  # ⚠️ 连接远程 DinD 时，OpenHands 不需要特权模式
   runtimeNodeSelector: {}
-
-  # Runtime Pod 的容忍度（可选）
   runtimeTolerations: []
 
-## ⭐ 关键：禁用 Docker Socket 挂载
-# 使用 Kubernetes runtime 时，不需要访问 Docker socket
+## ⭐ 关键：禁用 Docker Socket 挂载（使用远程 DinD 代替）
 dockerSocket:
-  enabled: false  # ✅ 禁用 Docker socket
+  enabled: false  # ✅ 禁用本地 Docker socket
 
 ## 部署配置
 replicaCount: 1
@@ -134,7 +130,7 @@ serviceAccount:
 imagePullSecrets: []
 # - name: harbor-registry-secret
 
-## Pod 安全上下文
+## Pod 安全上下文（连接远程 DinD，不需要特权模式）
 podSecurityContext:
   fsGroup: 42420
   runAsUser: 42420
@@ -142,7 +138,7 @@ podSecurityContext:
 
 ## 容器安全上下文
 securityContext:
-  privileged: false
+  privileged: false  # ✅ 连接远程 DinD 时不需要特权
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: false
   runAsNonRoot: true
@@ -164,12 +160,16 @@ ingress:
   enabled: false
   # className: "nginx"
   # annotations: {}
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
   # hosts:
   #   - host: openhands.example.com
   #     paths:
   #       - path: /
   #         pathType: Prefix
   # tls: []
+  #   - secretName: openhands-tls
+  #     hosts:
+  #       - openhands.example.com
 
 ## 资源配置
 resources:
@@ -200,7 +200,7 @@ affinity: {}
 ## 持久化存储配置
 persistence:
   enabled: true
-
+  
   # 数据持久化（配置、对话、文件存储等）
   data:
     enabled: true
@@ -208,7 +208,7 @@ persistence:
     storageClass: "rbd"  # 使用默认 StorageClass
     accessMode: ReadWriteOnce
     size: 5Gi
-
+  
   # 工作区持久化（用户代码、项目等）
   workspace:
     enabled: true
@@ -225,13 +225,13 @@ network:
     httpProxy: ""
     httpsProxy: ""
     noProxy: "localhost,127.0.0.1,.cluster.local"
-
+  
   # DNS 配置
   dns:
     servers: []
     # - 8.8.8.8
     # - 8.8.4.4
-
+  
   # 超时配置
   timeouts:
     githubApi: 30
