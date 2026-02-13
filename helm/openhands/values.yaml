@@ -226,7 +226,7 @@ affinity: {}
 
 # Docker socket mounting (required for runtime containers)
 dockerSocket:
-  enabled: true
+  enabled: false
   hostPath: /var/run/docker.sock
 
 # Persistence configuration

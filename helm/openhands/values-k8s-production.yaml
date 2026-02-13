@@ -6,17 +6,17 @@ image:
   repository: harbor.inspur.local/open-hands/openhands
   tag: 1.3.2
   pullPolicy: IfNotPresent
-  
+
   runtime:
     repository: harbor.inspur.local/open-hands/runtime
     tag: main-nikolaik
     pullPolicy: IfNotPresent
-  
+
   agentServer:
     repository: harbor.inspur.local/open-hands/agent-server
     tag: 1.10.0-python
     pullPolicy: IfNotPresent
-  
+
   uv:
     repository: harbor.inspur.local/open-hands/uv
     tag: latest
@@ -30,13 +30,13 @@ openhands:
     apiKey: "sk-your-api-key-here"  # ⚠️ 替换为实际的 API Key
     temperature: 0.0
     maxTokens: 0
-  
+
   # 工作区配置
   workspace:
     base: /opt/workspace_base
     mountPath: /workspace
     initGit: true
-  
+
   # ⭐ 关键配置：使用 Kubernetes runtime
   sandbox:
     runtime: kubernetes  # ✅ 使用 Kubernetes runtime（不需要 Docker socket）
@@ -45,16 +45,16 @@ openhands:
     maxBudget: 0.0
     enableGPU: false
     cudaVisibleDevices: ""
-  
+
   # 文件存储配置
   fileStore:
     type: local
     path: /.openhands
-  
+
   # 浏览器配置
   browser:
     enabled: true
-  
+
   # Agent 配置
   agent:
     defaultAgent: CodeActAgent
@@ -62,28 +62,30 @@ openhands:
     enableJupyter: true
     enableEditor: true
     enableCmd: true
-  
+
   # 安全配置
   security:
     enableAnalyzer: true
     analyzerType: llm
-  
+
   # 会话配置
   conversation:
     maxConcurrent: 3
     maxAgeSeconds: 86400  # 1 天
+  jwtSecret: "FKDNf/E7cwfXahlNKta2twD4NQ+KXvVG4tmzku38Z58="
+  secretKey: "FKDNf/E7cwfXahlNKta2twD4NQ+KXvVG4tmzku38Z58="
 
 ## Kubernetes Runtime 配置
 kubernetes:
   # Runtime Pod 的命名空间（可选，默认与 OpenHands 在同一命名空间）
   namespace: default
-  
+
   # PVC 配置
   pvc:
     storageSize: 10Gi
-    storageClass: ""  # 使用默认 StorageClass，或指定如 "rbd"
+    storageClass: "rbd"  # 使用默认 StorageClass，或指定如 "rbd"
     accessMode: ReadWriteOnce
-  
+
   # Runtime Pod 资源配置
   runtimeResources:
     cpu:
@@ -92,13 +94,13 @@ kubernetes:
     memory:
       request: "1Gi"
       limit: "2Gi"
-  
+
   # Runtime Pod 需要特权模式（用于某些操作）
   runtimePrivileged: true
-  
+
   # Runtime Pod 的节点选择器（可选）
   runtimeNodeSelector: {}
-  
+
   # Runtime Pod 的容忍度（可选）
   runtimeTolerations: []
 
@@ -190,20 +192,20 @@ affinity: {}
 ## 持久化存储配置
 persistence:
   enabled: true
-  
+
   # 数据持久化（配置、对话、文件存储等）
   data:
     enabled: true
     existingClaim: ""
-    storageClass: ""  # 使用默认 StorageClass
+    storageClass: "rbd"  # 使用默认 StorageClass
     accessMode: ReadWriteOnce
     size: 5Gi
-  
+
   # 工作区持久化（用户代码、项目等）
   workspace:
     enabled: true
     existingClaim: ""
-    storageClass: ""  # 使用默认 StorageClass
+    storageClass: "rbd"  # 使用默认 StorageClass
     accessMode: ReadWriteOnce
     size: 10Gi
 
@@ -215,13 +217,13 @@ network:
     httpProxy: ""
     httpsProxy: ""
     noProxy: "localhost,127.0.0.1,.cluster.local"
-  
+
   # DNS 配置
   dns:
     servers: []
     # - 8.8.8.8
     # - 8.8.4.4
-  
+
   # 超时配置
   timeouts:
     githubApi: 30
@@ -244,8 +246,3 @@ config:
 ## Secret 配置
 secret:
   enabled: false
-
-## ⚠️ 重要：密钥配置（推荐使用命令行传入）
-# openhands:
-#   jwtSecret: ""     # 使用: --set openhands.jwtSecret="$(openssl rand -base64 32)"
-#   secretKey: ""      # 使用: --set openhands.secretKey="$(openssl rand -base64 32)"
