@@ -94,6 +94,14 @@ spec:
         - name: RUNTIME_CONTAINER_IMAGE
           value: "{{ .Values.image.runtime.repository }}:{{ .Values.image.runtime.tag }}"
         {{- end }}
+        {{- if .Values.image.agentServer.repository }}
+        - name: AGENT_SERVER_IMAGE_REPOSITORY
+          value: {{ .Values.image.agentServer.repository | quote }}
+        {{- end }}
+        {{- if .Values.image.agentServer.tag }}
+        - name: AGENT_SERVER_IMAGE_TAG
+          value: {{ .Values.image.agentServer.tag | quote }}
+        {{- end }}
         {{- if .Values.openhands.security.enableAnalyzer }}
         - name: ENABLE_SECURITY_ANALYZER
           value: "true"
