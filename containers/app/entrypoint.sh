@@ -2,6 +2,30 @@
 set -eo pipefail
 
 echo "Starting OpenHands..."
+
+# ⭐ Patch host-gateway issue for Kubernetes/DinD deployments
+if [ -n "$SANDBOX_DISABLE_EXTRA_HOSTS" ]; then
+  PYTHON_FILE="/app/.venv/lib/python3.13/site-packages/openhands/app_server/sandbox/docker_sandbox_service.py"
+  
+  if [ -f "$PYTHON_FILE" ]; then
+    echo "Patching $PYTHON_FILE to disable host-gateway..."
+    
+    # Replace the default_factory lambda to check SANDBOX_DISABLE_EXTRA_HOSTS
+    # Old: default_factory=lambda: {'host.docker.internal': 'host-gateway'},
+    # New: default_factory=lambda: {'host.docker.internal': 'host-gateway'} if not os.getenv('SANDBOX_DISABLE_EXTRA_HOSTS') else {},
+    
+    if ! grep -q "SANDBOX_DISABLE_EXTRA_HOSTS" "$PYTHON_FILE"; then
+      # Find and replace the default_factory line
+      sed -i "s/default_factory=lambda: {'host.docker.internal': 'host-gateway'}/default_factory=lambda: {'host.docker.internal': 'host-gateway'} if not os.getenv('SANDBOX_DISABLE_EXTRA_HOSTS') else {}/" "$PYTHON_FILE"
+      echo "Patch applied: host-gateway disabled when SANDBOX_DISABLE_EXTRA_HOSTS is set"
+    else
+      echo "Already patched, skipping..."
+    fi
+  else
+    echo "WARNING: $PYTHON_FILE not found, skipping host-gateway patch"
+  fi
+fi
+
 if [[ $NO_SETUP == "true" ]]; then
   echo "Skipping setup, running as $(whoami)"
   "$@"
