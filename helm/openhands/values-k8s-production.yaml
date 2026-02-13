@@ -4,7 +4,7 @@
 ## 镜像配置（使用您的私有Harbor仓库）
 image:
   repository: harbor.inspur.local/open-hands/openhands
-  tag: 1.3.5
+  tag: 1.3.6
   pullPolicy: IfNotPresent
 
   runtime:

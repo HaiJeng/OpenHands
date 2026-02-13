@@ -5,7 +5,7 @@
 set -e
 
 # 配置
-IMAGE_NAME="openhands"
+IMAGE_NAME="harbor.inspur.local/open-hands/openhands"
 IMAGE_TAG="dev"
 BASE_IMAGE="openhands-base:latest"
 
@@ -24,7 +24,7 @@ echo ""
 # 检查基础镜像是否存在
 check_base_image() {
     echo -e "${YELLOW}检查基础镜像...${NC}"
-    
+
     if docker images "${BASE_IMAGE}" --format "{{.Repository}}:{{.Tag}}" | grep -q "${BASE_IMAGE}"; then
         echo -e "${GREEN}✓ 找到基础镜像: ${BASE_IMAGE}${NC}"
         docker images "${BASE_IMAGE}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
@@ -43,12 +43,12 @@ check_base_image() {
 build_app_image() {
     echo -e "${GREEN}开始构建应用镜像...${NC}"
     echo ""
-    
+
     # 检查修改的文件
     echo -e "${YELLOW}最近修改的文件:${NC}"
     git status --short 2>/dev/null || echo "(Git 信息不可用)"
     echo ""
-    
+
     # 构建命令
     BUILD_CMD=(
         "docker" "build"
@@ -57,13 +57,13 @@ build_app_image() {
         "-t" "${IMAGE_NAME}:${IMAGE_TAG}"
         "."
     )
-    
+
     # 可选：使用 BuildKit 获取更好的输出
     export DOCKER_BUILDKIT=1
-    
+
     echo -e "${YELLOW}构建命令: ${BUILD_CMD[*]}${NC}"
     echo ""
-    
+
     if "${BUILD_CMD[@]}"; then
         echo ""
         echo -e "${GREEN}✓ 应用镜像构建成功！${NC}"
@@ -80,12 +80,12 @@ test_image() {
     echo ""
     echo -e "${YELLOW}是否要运行容器测试？(y/N)${NC}"
     read -r response
-    
+
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo ""
         echo -e "${GREEN}启动容器测试...${NC}"
         echo ""
-        
+
         # 检查端口 3000 是否被占用
         if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
             echo -e "${YELLOW}警告: 端口 3000 已被占用${NC}"
@@ -100,9 +100,9 @@ test_image() {
                 PORT=3001
             fi
         fi
-        
+
         PORT=${PORT:-3000}
-        
+
         # 启动容器
         docker run -d \
             --name "openhands-dev" \
@@ -110,7 +110,7 @@ test_image() {
             -e OPENHANDS_LLM_API_KEY=test-key \
             -e OPENHANDS_LLM_MODEL=gpt-4o \
             "${IMAGE_NAME}:${IMAGE_TAG}"
-        
+
         echo ""
         echo -e "${GREEN}容器已启动！${NC}"
         echo -e "${GREEN}容器名: openhands-dev${NC}"
@@ -131,7 +131,7 @@ show_stats() {
     echo -e "${GREEN}构建统计${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
-    
+
     # 显示镜像大小
     echo -e "${YELLOW}镜像大小对比:${NC}"
     echo ""
@@ -141,7 +141,7 @@ show_stats() {
     echo "应用镜像:"
     docker images "${IMAGE_NAME}:${IMAGE_TAG}" --format "  {{.Repository}}:{{.Tag}} - {{.Size}}"
     echo ""
-    
+
     # 显示构建历史（如果有）
     echo -e "${YELLOW}构建历史:${NC}"
     docker images "${IMAGE_NAME}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | head -5
@@ -154,16 +154,16 @@ main() {
     if ! check_base_image; then
         exit 1
     fi
-    
+
     # 构建应用镜像
     build_app_image
-    
+
     # 测试镜像（可选）
     test_image
-    
+
     # 显示统计
     show_stats
-    
+
     echo ""
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}快速构建完成！${NC}"
