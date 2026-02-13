@@ -246,6 +246,9 @@ def config_from_env() -> AppServerConfig:
             config.sandbox_spec = RemoteSandboxSpecServiceInjector()
         elif os.getenv('RUNTIME') in ('local', 'process'):
             config.sandbox_spec = ProcessSandboxSpecServiceInjector()
+        elif os.getenv('RUNTIME') == 'kubernetes':
+            # For Kubernetes runtime, use ProcessSandboxSpecServiceInjector which doesn't require Docker
+            config.sandbox_spec = ProcessSandboxSpecServiceInjector()
         else:
             config.sandbox_spec = DockerSandboxSpecServiceInjector()
 
