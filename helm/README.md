@@ -98,17 +98,26 @@ kubectl wait --for=condition=ready pod \
 
 ### 步骤 4：访问 OpenHands
 
-#### NodePort（推荐）
+#### 🌐 NodePort（推荐）
+
+**快速访问**：
 
 ```bash
 # 获取访问地址
 NODE_PORT=$(kubectl get svc openhands -n $NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}')
-NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
 echo "访问地址: http://$NODE_IP:$NODE_PORT"
 ```
 
-#### Port Forward
+**访问地址**：
+- 节点 IP 示例：`192.168.1.100`
+- 配置的 NodePort：`30030`
+- 最终访问地址：`http://192.168.1.100:30030`
+
+**📖 详细指南**：[NODEPORT_ACCESS.md](./NODEPORT_ACCESS.md) - 完整的 NodePort 访问指南
+
+#### 🔧 Port Forward（本地测试）
 
 ```bash
 kubectl port-forward svc/openhands 3000:3000 -n $NAMESPACE
@@ -165,6 +174,13 @@ service:
   - 分步部署说明
   - 故障排除
   - Ingress/TLS 配置
+
+### NodePort 访问
+- **[NODEPORT_ACCESS.md](./NODEPORT_ACCESS.md)** - NodePort 访问完整指南 ⭐
+  - NodePort 配置说明
+  - 访问方式详解
+  - 故障排除
+  - 安全建议
 
 ### Kubernetes Runtime
 - **[K8S_RUNTIME_GUIDE.md](./K8S_RUNTIME_GUIDE.md)** - Kubernetes runtime 深入指南
