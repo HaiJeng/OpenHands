@@ -97,8 +97,8 @@ echo ""
 echo -e "${YELLOW}[7/8] 部署 OpenHands...${NC}"
 cd /workspace/project/OpenHands/helm
 
-# 检查是否已安装
-if helm list -n $NAMESPACE | grep -q $HELM_RELEASE; then
+# 检查是否已安装（使用 helm list -q 只输出 NAME 列，避免匹配到 NAMESPACE）
+if helm list -n $NAMESPACE -q | grep -q "^${HELM_RELEASE}$"; then
     echo -e "${YELLOW}  发现已有部署，执行升级...${NC}"
     
     if [ -z "$BASE_URL" ]; then
